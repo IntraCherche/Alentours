@@ -114,13 +114,7 @@
             </div>
           </div>
 
-          <div v-if="nearest.wiki" class="extract-wrap" ref="extractWrapRef">
-            <div
-              class="extract-inner town-extract"
-              :class="{ 'extract-inner--scroll': extractDist > 0 }"
-              :style="extractDist > 0 ? { '--dist': `-${extractDist}px`, '--scroll-dur': `${extractDur}s` } : {}"
-            >{{ nearest.wiki.extract }}</div>
-          </div>
+          <div v-if="nearest.wiki" class="town-extract">{{ nearest.wiki.extract }}</div>
           <div v-else class="town-extract town-extract--dim">{{ t('noDescription') }}</div>
         </div>
 
@@ -345,46 +339,20 @@ const gpsStatusClass = computed(() => {
 const townFontScale = ref(parseFloat(localStorage.getItem('townFontScale') || '1.2'))
 watch(townFontScale, (v) => localStorage.setItem('townFontScale', String(v)))
 
-// ── Extract auto-scroll ────────────────────────────────────────────────
-const extractWrapRef = ref(null)
-const extractDist    = ref(0)
-const extractDur     = ref(15)
-
-// ── Aside auto-scroll (portrait only) ─────────────────────────────────
+// ── Aside auto-scroll ─────────────────────────────────────────────────
 const asideRef       = ref(null)
 const asideInnerRef  = ref(null)
 const asideScrollDist = ref(0)
 const asideScrollDur  = ref(20)
 
-watch(() => nearest.value?.wiki?.extract, async () => {
+watch(nearest, async () => {
   await nextTick()
   measureAside()
-  measureExtract()
 })
 watch(townFontScale, async () => {
   await nextTick()
   measureAside()
-  measureExtract()
 })
-watch(nearest, async () => {
-  await nextTick()
-  measureAside()
-  measureExtract()
-})
-
-function measureExtract() {
-  if (asideScrollDist.value > 0) {
-    extractDist.value = 0
-    return
-  }
-  const el = extractWrapRef.value
-  if (!el) return
-  const inner = el.querySelector('.extract-inner')
-  if (!inner) return
-  const dist = Math.max(0, inner.scrollHeight - el.clientHeight)
-  extractDist.value = dist
-  extractDur.value = Math.round(dist / 15 + 5)
-}
 
 function measureAside() {
   const aside = asideRef.value
@@ -982,11 +950,7 @@ function sideArrow(s) {
 .gender-sign.female { color: var(--accent); }
 .gender-sign.male   { color: var(--blue); }
 
-/* ── Extract scroll ───────────────────────────────────────────────── */
-.extract-wrap {
-  overflow: hidden;
-  max-height: 4.5em;
-}
+/* ── Extract ──────────────────────────────────────────────────────── */
 .town-extract {
   font-size: 0.88em;
   color: var(--text-primary);
@@ -994,13 +958,6 @@ function sideArrow(s) {
   font-weight: 400;
 }
 .town-extract--dim { color: var(--text-muted); font-style: italic; }
-.extract-inner--scroll {
-  animation: vscroll var(--scroll-dur, 15s) ease-in-out infinite;
-}
-@keyframes vscroll {
-  0%, 18%   { transform: translateY(0); }
-  82%, 100% { transform: translateY(var(--dist, 0px)); }
-}
 
 /* ── Aside auto-scroll ────────────────────────────────────────────── */
 .aside-inner {
@@ -1355,15 +1312,6 @@ function sideArrow(s) {
     order: 2;
     flex: 1;
     min-height: 200px;
-  }
-  /* Extract shows in full — aside animation handles reading it */
-  .extract-wrap {
-    max-height: none;
-    overflow: visible;
-  }
-  .extract-inner--scroll {
-    animation: none;
-    transform: none;
   }
 }
 </style>
