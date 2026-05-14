@@ -1,7 +1,7 @@
 {
-  "name": "motorhome-dashboard",
+  "name": "alentours",
   "version": "0.1.0",
-  "description": "Ambient road trip dashboard for motorhome TV via Chromecast",
+  "description": "Travel companion showing nearby towns with Wikipedia info while on the move",
   "type": "module",
   "scripts": {
     "dev": "vite",
