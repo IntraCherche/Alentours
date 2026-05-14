@@ -55,7 +55,11 @@
         <div class="panel panel--town" v-if="nearest">
           <div class="panel__label">{{ t('nearestTown') }}</div>
           <div class="town-header">
-            <div class="town-name">{{ nearest.name }}</div>
+            <div class="town-name-row">
+              <span v-if="nearest.side !== 'unknown'" class="town-arrow" :class="nearest.side">{{ sideArrow(nearest.side) }}</span>
+              <div class="town-name">{{ nearest.name }}</div>
+              <span v-if="nearest.side !== 'unknown'" class="town-arrow" :class="nearest.side">{{ sideArrow(nearest.side) }}</span>
+            </div>
             <div class="town-side" :class="nearest.side">{{ sideLabel(nearest.side) }}</div>
           </div>
           <div class="town-dist">{{ formatKm(nearest.distance) }} away · {{ nearest.place }}</div>
@@ -670,6 +674,9 @@ function truncate(str, n) { return str?.length > n ? str.slice(0, n) + '…' : s
 function sideLabel(s) {
   return { left: t('sideLeft'), right: t('sideRight'), ahead: t('sideAhead'), behind: t('sideBehind'), unknown: '' }[s] ?? ''
 }
+function sideArrow(s) {
+  return { left: '⬅', right: '➡', ahead: '⬆', behind: '⬇' }[s] ?? ''
+}
 </script>
 
 <style scoped>
@@ -853,10 +860,25 @@ function sideLabel(s) {
 
 .town-header {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
 }
+.town-name-row {
+  display: flex;
+  align-items: center;
+  gap: 0.2em;
+  min-width: 0;
+}
+.town-arrow {
+  font-size: 1.8em;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.town-arrow.left   { color: var(--blue); }
+.town-arrow.right  { color: var(--accent); }
+.town-arrow.ahead  { color: var(--green); }
+.town-arrow.behind { color: var(--text-primary); }
 .town-name {
   font-family: var(--font-display);
   font-size: 1.6em;
