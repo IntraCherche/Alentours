@@ -1,26 +1,37 @@
-# ⬡ RoadDash — Motorhome Ambient Dashboard
+# ⬡ Alentours
 
-An open-source ambient display for motorhome passengers.  
-Shows live position, route progress, and nearby town info on a TV via Chromecast tab casting.
+A road-trip companion app designed to be read from the passenger seat — or mounted on a motorhome screen.  
+Plan a route, start the GPS, and get live info about the towns you pass through.
 
-## Features
+## What it does
 
-- 🗺️ **Live map** — OpenStreetMap, dark-themed, auto-follows position
-- 📊 **Route progress bar** — load a GPX, see how far you've come and how far to go
-- 🏘️ **Nearest towns** — Overpass API + Wikipedia, auto-refreshed as you drive
-- ↔️ **Left / right indicator** — tells passengers which side of the road a town is on
-- 📡 **Zero-server** — BroadcastChannel between sender and receiver tabs, no backend needed
-- 📲 **PWA** — installable, works offline (map tiles cached after first use)
+- **Route planning** — type an origin and destination, the app builds a road route and draws it on the map
+- **GPS tracking** — follows your position in real time, draws your actual path over the planned route, shows current speed
+- **Route progress** — progress bar with distance done, distance left, and percentage
+- **Nearest town panel** — as you drive, shows the closest town with:
+  - Wikipedia landmark thumbnail
+  - Population, inhabitant names, rivers, department (+ INSEE code) and region
+  - Current mayor with gender indicator (♂ / ♀)
+  - Auto-scrolling Wikipedia extract for long descriptions
+- **Offline-first pre-fetch** — at trip start, all towns along the route are fetched from Overpass, Wikipedia, and Wikidata and cached locally; no further network calls are needed while driving
+- **Scalable UI** — font-size slider (×0.8 → ×2.0) in settings for easy reading at distance; progress and town panels scale together
+- **Dark / light theme** and EN / FR language, both persisted
+- **Session persistence** — closing and reopening the app resumes the trip exactly where you left off (route, GPS path, position)
+- **PWA** — installable, OSM tiles and Wikipedia responses cached for offline use
 
-## Tech Stack
+## Tech stack
 
-- Vue 3 + Vite + Vue Router
-- `gpxparser` for GPX parsing
-- Leaflet for maps (OpenStreetMap tiles)
-- Overpass API for nearby POIs
-- Wikipedia REST API for town descriptions
-- BroadcastChannel API for sender → receiver sync
-- `vite-plugin-pwa` for service worker + offline support
+| Concern | Library / API |
+|---|---|
+| UI framework | Vue 3 + Vite |
+| Map | Leaflet + OpenStreetMap tiles |
+| GPS | Browser Geolocation API |
+| Geocoding | Nominatim (OpenStreetMap) |
+| Routing | OSRM public API |
+| Nearby towns | Overpass API |
+| Town descriptions | Wikipedia REST API (`/page/summary`) |
+| Enriched town data | Wikidata SPARQL (`query.wikidata.org`) |
+| Offline / PWA | vite-plugin-pwa + Workbox |
 
 ## Setup
 
@@ -29,35 +40,16 @@ npm install
 npm run dev
 ```
 
-Open two browser tabs:
-- **Sender** → `http://localhost:5173/#/sender` (on your phone)
-- **Receiver** → `http://localhost:5173/#/receiver` (cast this tab to the TV)
+Open `http://localhost:5173` in a browser with geolocation support.
 
-## Deploy to GitHub Pages
+## Build
 
 ```bash
 npm run build
-# Push the dist/ folder to your gh-pages branch
+npm run preview   # local preview of the production build
 ```
 
-Set `base: './'` is already configured in `vite.config.js`.
-
-## How Casting Works (no Cast SDK needed)
-
-1. Open the **Sender** URL in Chrome on your Android phone
-2. Open the **Receiver** URL in Chrome on any device connected to the same Wi-Fi
-3. In Chrome on the receiver device, tap ⋮ → Cast → select your Chromecast
-4. Both tabs communicate via `BroadcastChannel` (same origin)
-
-No Google Cast SDK registration needed. No fees.
-
-## Roadmap
-
-- [ ] Wikipedia language auto-detected from locale
-- [ ] Bearing-to-next-waypoint arrow
-- [ ] Elevation profile
-- [ ] Google Cast SDK proper integration (background casting)
-- [ ] Dark/light theme toggle for daytime use
+The `base: './'` in `vite.config.js` makes the build relocatable (works on GitHub Pages or any subdirectory).
 
 ## License
 
