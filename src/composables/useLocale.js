@@ -52,6 +52,8 @@ const translations = {
     place_city: 'City',
     place_town: 'Town',
     place_village: 'Village',
+    about: 'About',
+    aboutSub: 'Road-trip companion',
   },
   fr: {
     noRoute: 'Aucun itinéraire',
@@ -100,6 +102,8 @@ const translations = {
     place_city: 'Ville',
     place_town: 'Bourg',
     place_village: 'Village',
+    about: 'À propos',
+    aboutSub: 'Compagnon de voyage',
   }
 }
 

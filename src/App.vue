@@ -3,27 +3,53 @@
 
     <!-- ── TOP BAR ──────────────────────────────────────────────── -->
     <header class="topbar">
-      <div class="topbar__logo">⬡ Alentours</div>
-      <div class="topbar__route">{{ routeName || t('noRoute') }}</div>
-      <div class="topbar__gps">
-        <span class="dot" :class="gpsStatusClass"></span>
-        <span>{{ position ? position.lat.toFixed(4) + ', ' + position.lng.toFixed(4) : t('waitingGps') }}</span>
+      <div class="topbar__row">
+        <div class="topbar__route">{{ routeName || t('noRoute') }}</div>
+        <div class="menu-wrap">
+          <button class="icon-btn menu-btn" :class="{ active: menuOpen }" @click="menuOpen = !menuOpen" title="Menu">☰</button>
+          <Transition name="menu">
+            <div v-if="menuOpen" class="menu-dropdown">
+              <button class="menu-item" @click="toggleTheme(); menuOpen = false">
+                <span class="menu-item__icon">{{ isDark ? '☾' : '☀' }}</span>
+                <span>{{ isDark ? t('lightMode') : t('darkMode') }}</span>
+              </button>
+              <button class="menu-item" @click="settingsOpen = true; menuOpen = false">
+                <span class="menu-item__icon">⚙</span>
+                <span>{{ t('settings') }}</span>
+              </button>
+              <button class="menu-item" @click="aboutOpen = true; menuOpen = false">
+                <span class="menu-item__icon">ⓘ</span>
+                <span>{{ t('about') }}</span>
+              </button>
+            </div>
+          </Transition>
+        </div>
       </div>
-      <div class="menu-wrap">
-        <button class="icon-btn menu-btn" :class="{ active: menuOpen }" @click="menuOpen = !menuOpen" title="Menu">☰</button>
-        <Transition name="menu">
-          <div v-if="menuOpen" class="menu-dropdown">
-            <button class="menu-item" @click="toggleTheme(); menuOpen = false">
-              <span class="menu-item__icon">{{ isDark ? '☾' : '☀' }}</span>
-              <span>{{ isDark ? t('lightMode') : t('darkMode') }}</span>
-            </button>
-            <button class="menu-item" @click="settingsOpen = true; menuOpen = false">
-              <span class="menu-item__icon">⚙</span>
-              <span>{{ t('settings') }}</span>
-            </button>
+      <template v-if="routeLoaded">
+        <div class="progress-track">
+          <div class="progress-fill" :style="progressFillStyle"></div>
+          <div class="progress-thumb" :style="{ left: (progress ?? 0) + '%' }">{{ vehicleIcon }}</div>
+        </div>
+        <div class="progress-stats">
+          <span>{{ formatKm(distanceDone) }}</span>
+          <span class="progress-pct">{{ progress?.toFixed(0) ?? 0 }}%</span>
+          <span>{{ formatKm(distanceLeft) }}</span>
+        </div>
+        <div class="speed-row">
+          <div class="speed-cell">
+            <span class="speed-label">{{ t('currentSpeed') }}</span>
+            <span class="speed-val">{{ position?.speed != null ? formatSpeed(position.speed) : '—' }}</span>
           </div>
-        </Transition>
-      </div>
+          <div class="speed-cell">
+            <span class="speed-label">{{ t('avgSpeed') }}</span>
+            <span class="speed-val">{{ avgSpeedMs ? formatSpeed(avgSpeedMs) : '—' }}</span>
+          </div>
+          <div class="speed-cell">
+            <span class="speed-label">{{ t('remaining') }}</span>
+            <span class="speed-val">{{ remainingDuration ? formatDuration(remainingDuration) : '—' }}</span>
+          </div>
+        </div>
+      </template>
     </header>
     <div v-if="menuOpen" class="menu-backdrop" @click="menuOpen = false"></div>
 
@@ -31,36 +57,13 @@
     <main class="main">
       <div class="map-wrap" ref="mapContainer"></div>
 
-      <aside class="aside">
-
-        <!-- Progress -->
-        <div class="panel panel--progress" v-if="routeLoaded">
-          <div class="panel__label">{{ t('routeProgress') }}</div>
-          <div class="progress-track">
-            <div class="progress-fill" :style="progressFillStyle"></div>
-            <div class="progress-thumb" :style="{ left: (progress ?? 0) + '%' }">{{ vehicleIcon }}</div>
-          </div>
-          <div class="progress-stats">
-            <span>{{ formatKm(distanceDone) }}</span>
-            <span class="progress-pct">{{ progress?.toFixed(0) ?? 0 }}%</span>
-            <span>{{ formatKm(distanceLeft) }}</span>
-          </div>
-
-          <div class="speed-row">
-            <div class="speed-cell">
-              <span class="speed-label">{{ t('currentSpeed') }}</span>
-              <span class="speed-val">{{ position?.speed != null ? formatSpeed(position.speed) : '—' }}</span>
-            </div>
-            <div class="speed-cell">
-              <span class="speed-label">{{ t('avgSpeed') }}</span>
-              <span class="speed-val">{{ avgSpeedMs ? formatSpeed(avgSpeedMs) : '—' }}</span>
-            </div>
-            <div class="speed-cell">
-              <span class="speed-label">{{ t('remaining') }}</span>
-              <span class="speed-val">{{ remainingDuration ? formatDuration(remainingDuration) : '—' }}</span>
-            </div>
-          </div>
-        </div>
+      <aside class="aside" ref="asideRef">
+      <div
+        class="aside-inner"
+        ref="asideInnerRef"
+        :class="{ 'aside-inner--scroll': asideScrollDist > 0 }"
+        :style="asideScrollDist > 0 ? { '--aside-dist': `-${asideScrollDist}px`, '--aside-dur': `${asideScrollDur}s` } : {}"
+      >
 
         <!-- Nearest town -->
         <div class="panel panel--town" v-if="nearest">
@@ -130,6 +133,7 @@
           </div>
         </div>
 
+      </div><!-- /aside-inner -->
       </aside>
     </main>
 
@@ -253,6 +257,18 @@
       </div>
     </Transition>
 
+    <!-- ── ABOUT MODAL ────────────────────────────────────────────── -->
+    <Transition name="fade">
+      <div v-if="aboutOpen" class="about-overlay" @click.self="aboutOpen = false">
+        <div class="about-card">
+          <div class="about-logo">⬡ Alentours</div>
+          <div class="about-sub">{{ t('aboutSub') }}</div>
+          <div class="about-author">made by IntraCherche</div>
+          <button class="icon-btn" @click="aboutOpen = false">✕</button>
+        </div>
+      </div>
+    </Transition>
+
   </div>
 </template>
 
@@ -275,6 +291,7 @@ const { lang, t } = useLocale()
 // ── Menu + Settings drawer ─────────────────────────────────────────────
 const menuOpen     = ref(false)
 const settingsOpen = ref(false)
+const aboutOpen    = ref(false)
 
 // ── Geolocation ────────────────────────────────────────────────────────
 const { position, error: geoError, watching, start: startGps, stop: stopGps } = useGeolocation()
@@ -333,13 +350,25 @@ const extractWrapRef = ref(null)
 const extractDist    = ref(0)
 const extractDur     = ref(15)
 
+// ── Aside auto-scroll (portrait only) ─────────────────────────────────
+const asideRef       = ref(null)
+const asideInnerRef  = ref(null)
+const asideScrollDist = ref(0)
+const asideScrollDur  = ref(20)
+
 watch(() => nearest.value?.wiki?.extract, async () => {
   await nextTick()
   measureExtract()
+  measureAside()
 })
 watch(townFontScale, async () => {
   await nextTick()
   measureExtract()
+  measureAside()
+})
+watch(nearest, async () => {
+  await nextTick()
+  measureAside()
 })
 
 function measureExtract() {
@@ -350,6 +379,19 @@ function measureExtract() {
   const dist = Math.max(0, inner.scrollHeight - el.clientHeight)
   extractDist.value = dist
   extractDur.value = Math.round(dist / 15 + 5)
+}
+
+function measureAside() {
+  const aside = asideRef.value
+  const inner = asideInnerRef.value
+  if (!aside || !inner) return
+  if (!window.matchMedia('(orientation: portrait)').matches) {
+    asideScrollDist.value = 0
+    return
+  }
+  const dist = Math.max(0, inner.scrollHeight - aside.clientHeight)
+  asideScrollDist.value = dist
+  asideScrollDur.value = Math.round(dist / 20 + 8)
 }
 
 // ── Vehicle icon ───────────────────────────────────────────────────────
@@ -371,6 +413,7 @@ const vehicleIcons = [
 let L = null, map = null
 let vehicleMarker = null, routePolyline = null, actualPolyline = null
 let startMarker = null, endMarker = null
+let mapResizeObserver = null
 const mapContainer = ref(null)
 
 function makeVehicleIcon(icon) {
@@ -399,6 +442,15 @@ async function initMap() {
     keyboard: false
   }).setView([46.5, 2.3], 6)
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 15 }).addTo(map)
+
+  mapResizeObserver = new ResizeObserver(() => fitBoundsToRoute())
+  mapResizeObserver.observe(mapContainer.value)
+}
+
+function fitBoundsToRoute() {
+  if (!map || !L || !routePolyline) return
+  map.invalidateSize()
+  map.fitBounds(routePolyline.getBounds(), { padding: [48, 48] })
 }
 
 function drawPlannedRoute() {
@@ -431,8 +483,7 @@ function drawPlannedRoute() {
     })
   }).addTo(map)
 
-  map.invalidateSize()
-  map.fitBounds(routePolyline.getBounds(), { padding: [48, 48] })
+  fitBoundsToRoute()
 }
 
 function clearMapLayers() {
@@ -531,9 +582,7 @@ function restoreFromSession() {
   drawPlannedRoute()
   drawActualPath()
 
-  if (lastSavedPosition && map) {
-    map.setView([lastSavedPosition.lat, lastSavedPosition.lng], 12)
-  }
+  fitBoundsToRoute()
 
   restoreCache()
   startGps()
@@ -552,10 +601,13 @@ onMounted(async () => {
     }
   }
   document.addEventListener('visibilitychange', onVisibilityChange)
+  const orientationMq = window.matchMedia('(orientation: portrait)')
+  orientationMq.addEventListener('change', async () => { await nextTick(); measureAside() })
 })
 
 onUnmounted(() => {
   if (map) map.remove()
+  if (mapResizeObserver) mapResizeObserver.disconnect()
   document.removeEventListener('visibilitychange', onVisibilityChange)
 })
 
@@ -705,20 +757,17 @@ function sideArrow(s) {
 
 .topbar {
   display: flex;
-  align-items: center;
-  gap: 1.5rem;
+  flex-direction: column;
+  gap: 0.35rem;
   padding: 0.6rem 1.5rem;
   background: var(--bg-panel);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
-.topbar__logo {
-  font-family: var(--font-display);
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: var(--accent);
-  letter-spacing: 0.08em;
-  white-space: nowrap;
+.topbar__row {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
 }
 .topbar__route {
   font-family: var(--font-display);
@@ -727,21 +776,6 @@ function sideArrow(s) {
   flex: 1;
   letter-spacing: 0.04em;
 }
-.topbar__gps {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.8rem;
-  color: var(--text-muted);
-  font-family: 'Courier New', monospace;
-}
-.dot {
-  width: 8px; height: 8px;
-  border-radius: 50%;
-  background: var(--text-dim);
-}
-.dot.live  { background: var(--green); box-shadow: 0 0 6px var(--green); }
-.dot.stale { background: var(--accent); }
 
 .icon-btn {
   background: var(--bg-card);
@@ -784,8 +818,7 @@ function sideArrow(s) {
   flex-direction: column;
   gap: 0.5rem;
 }
-/* Both panels scale with the same setting */
-.panel--progress,
+/* Town panel scales with the text-size setting */
 .panel--town {
   font-size: calc(1rem * var(--town-scale, 1));
 }
@@ -963,6 +996,20 @@ function sideArrow(s) {
 @keyframes vscroll {
   0%, 18%   { transform: translateY(0); }
   82%, 100% { transform: translateY(var(--dist, 0px)); }
+}
+
+/* ── Aside auto-scroll ────────────────────────────────────────────── */
+.aside-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.aside-inner--scroll {
+  animation: aside-vscroll var(--aside-dur, 20s) ease-in-out infinite;
+}
+@keyframes aside-vscroll {
+  0%, 15%   { transform: translateY(0); }
+  85%, 100% { transform: translateY(var(--aside-dist, 0px)); }
 }
 
 .panel--waiting {
@@ -1238,6 +1285,83 @@ function sideArrow(s) {
 .drawer-leave-active { transition: transform 0.25s ease; }
 .drawer-enter-from,
 .drawer-leave-to     { transform: translateX(100%); }
+
+/* ── About modal ──────────────────────────────────────────────────── */
+.about-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.about-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 2rem 2.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 220px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+}
+.about-logo {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 0.08em;
+}
+.about-sub {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+}
+.about-author {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  letter-spacing: 0.06em;
+  margin-top: 0.2rem;
+}
+
+/* ── Fade transition (About modal) ───────────────────────────────── */
+.fade-enter-active,
+.fade-leave-active { transition: opacity 0.2s ease; }
+.fade-enter-from,
+.fade-leave-to     { opacity: 0; }
+
+/* ── Portrait layout ──────────────────────────────────────────────── */
+@media (orientation: portrait) {
+  .main {
+    display: flex;
+    flex-direction: column;
+  }
+  .aside {
+    order: 1;
+    border-left: none;
+    border-bottom: 1px solid var(--border);
+    max-height: 50vh;
+    overflow: hidden; /* animation drives scrolling, no scrollbar */
+    gap: 0;           /* aside-inner owns the gap */
+  }
+  .map-wrap {
+    order: 2;
+    flex: 1;
+    min-height: 200px;
+  }
+  /* Extract shows in full — aside animation handles reading it */
+  .extract-wrap {
+    max-height: none;
+    overflow: visible;
+  }
+  .extract-inner--scroll {
+    animation: none;
+    transform: none;
+  }
+}
 </style>
 
 <style>
