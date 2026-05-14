@@ -385,10 +385,6 @@ function measureAside() {
   const aside = asideRef.value
   const inner = asideInnerRef.value
   if (!aside || !inner) return
-  if (!window.matchMedia('(orientation: portrait)').matches) {
-    asideScrollDist.value = 0
-    return
-  }
   const dist = Math.max(0, inner.scrollHeight - aside.clientHeight)
   asideScrollDist.value = dist
   asideScrollDur.value = Math.round(dist / 20 + 8)
@@ -413,7 +409,7 @@ const vehicleIcons = [
 let L = null, map = null
 let vehicleMarker = null, routePolyline = null, actualPolyline = null
 let startMarker = null, endMarker = null
-let mapResizeObserver = null
+let mapResizeObserver = null, asideResizeObserver = null
 const mapContainer = ref(null)
 
 function makeVehicleIcon(icon) {
@@ -603,11 +599,14 @@ onMounted(async () => {
   document.addEventListener('visibilitychange', onVisibilityChange)
   const orientationMq = window.matchMedia('(orientation: portrait)')
   orientationMq.addEventListener('change', async () => { await nextTick(); measureAside() })
+  asideResizeObserver = new ResizeObserver(() => measureAside())
+  if (asideRef.value) asideResizeObserver.observe(asideRef.value)
 })
 
 onUnmounted(() => {
   if (map) map.remove()
   if (mapResizeObserver) mapResizeObserver.disconnect()
+  if (asideResizeObserver) asideResizeObserver.disconnect()
   document.removeEventListener('visibilitychange', onVisibilityChange)
 })
 
@@ -803,7 +802,7 @@ function sideArrow(s) {
   flex-direction: column;
   gap: 0.75rem;
   padding: 0.75rem;
-  overflow-y: auto;
+  overflow: hidden;
   background: var(--bg-panel);
   border-left: 1px solid var(--border);
 }
