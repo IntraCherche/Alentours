@@ -4,7 +4,7 @@
  * Two modes:
  * 1. prefetchForRoute(samplePoints) — called once at trip start, queries
  *    Overpass for all towns along the route and caches them with Wikipedia
- *    summaries. No further network calls during the drive.
+ *    summaries + Wikidata enrichment. No further network calls during the drive.
  *
  * 2. fetchNearbyTowns(lat, lng, heading) — live fallback if no pre-fetch,
  *    or if user drives off-route. Throttled to 1 call / 60s / 500m.
@@ -51,7 +51,7 @@ export function useNearbyTowns() {
       const data = await res.json()
 
       const elements = data.elements ?? []
-      prefetchProgress.value = 30
+      prefetchProgress.value = 20
 
       // Deduplicate by OSM id, build base town objects
       const unique = {}
@@ -83,8 +83,15 @@ export function useNearbyTowns() {
             town.wiki = await fetchWikiSummary(wikiName, lang.value)
           } catch { town.wiki = null }
         }))
-        prefetchProgress.value = 30 + Math.round(((i + batchSize) / uniqueList.length) * 70)
+        prefetchProgress.value = 20 + Math.round(((i + batchSize) / uniqueList.length) * 55)
       }
+
+      prefetchProgress.value = 75
+
+      // Enrich with Wikidata (population, demonym, rivers, department, region, mayor)
+      await enrichWithWikidata(uniqueList, lang.value, (pct) => {
+        prefetchProgress.value = 75 + Math.round(pct * 0.25)
+      })
 
       // Store in memory + localStorage
       townCache = {}
@@ -168,6 +175,8 @@ export function useNearbyTowns() {
         } catch {}
       }))
 
+      await enrichWithWikidata(list, lang.value)
+
       towns.value = list
     } catch (err) {
       error.value = err.message
@@ -206,8 +215,92 @@ async function fetchWikiSummary(name, language = 'en') {
   return {
     title: data.title,
     extract: data.extract,
-    thumbnail: data.thumbnail?.source ?? null
+    thumbnail: data.thumbnail?.source ?? null,
+    qid: data.wikibase_item ?? null
   }
+}
+
+// Batch Wikidata SPARQL enrichment for a list of towns (mutates town.wiki in place)
+async function enrichWithWikidata(townList, language, onProgress) {
+  const withQid = townList.filter(t => t.wiki?.qid)
+  if (!withQid.length) return
+
+  const batchSize = 15
+  for (let i = 0; i < withQid.length; i += batchSize) {
+    const batch = withQid.slice(i, i + batchSize)
+    try {
+      const wdData = await fetchWikidataBatch(batch.map(t => t.wiki.qid), language)
+      for (const town of batch) {
+        const wd = wdData[town.wiki.qid]
+        if (wd) Object.assign(town.wiki, wd)
+      }
+    } catch { /* non-fatal: Wikidata enrichment is best-effort */ }
+    if (onProgress) onProgress((i + batchSize) / withQid.length)
+  }
+}
+
+// Single SPARQL call for up to ~15 QIDs, returns map of qid → enrichment object
+async function fetchWikidataBatch(qids, language) {
+  if (!qids.length) return {}
+  const lang = language === 'fr' ? 'fr' : 'en'
+  const values = qids.map(q => `wd:${q}`).join(' ')
+
+  const sparql = `
+SELECT DISTINCT ?city ?pop ?demonym ?riverLabel ?depLabel ?depCode ?regLabel ?mayorLabel ?mayorSex ?image WHERE {
+  VALUES ?city { ${values} }
+  OPTIONAL { ?city wdt:P1082 ?pop }
+  OPTIONAL { ?city wdt:P1549 ?demonym . FILTER(LANG(?demonym) = "${lang}") }
+  OPTIONAL {
+    ?city wdt:P206 ?river .
+    ?river rdfs:label ?riverLabel . FILTER(LANG(?riverLabel) = "${lang}")
+  }
+  OPTIONAL {
+    ?city wdt:P131 ?dep .
+    ?dep rdfs:label ?depLabel . FILTER(LANG(?depLabel) = "${lang}")
+    OPTIONAL { ?dep wdt:P2586 ?depCode }
+    OPTIONAL {
+      ?dep wdt:P131 ?reg .
+      ?reg rdfs:label ?regLabel . FILTER(LANG(?regLabel) = "${lang}")
+    }
+  }
+  OPTIONAL {
+    ?city wdt:P6 ?mayor .
+    ?mayor rdfs:label ?mayorLabel . FILTER(LANG(?mayorLabel) = "${lang}")
+    OPTIONAL {
+      ?mayor wdt:P21 ?sexItem .
+      BIND(IF(?sexItem = wd:Q6581072, "female", IF(?sexItem = wd:Q6581097, "male", "other")) AS ?mayorSex)
+    }
+  }
+  OPTIONAL { ?city wdt:P18 ?image }
+}
+`
+
+  const url = `https://query.wikidata.org/sparql?query=${encodeURIComponent(sparql)}&format=json`
+  const res = await fetch(url, { headers: { Accept: 'application/sparql-results+json' } })
+  if (!res.ok) return {}
+  const data = await res.json()
+
+  const results = {}
+  for (const row of data.results.bindings) {
+    const qid = row.city?.value?.split('/').pop()
+    if (!qid) continue
+    if (!results[qid]) results[qid] = {
+      population: null, demonyms: [], rivers: [],
+      department: null, departmentCode: null, region: null,
+      mayor: null, mayorGender: null, image: null
+    }
+    const r = results[qid]
+    if (row.pop) r.population = Math.round(parseFloat(row.pop.value))
+    if (row.demonym) { const d = row.demonym.value; if (!r.demonyms.includes(d)) r.demonyms.push(d) }
+    if (row.riverLabel) { const rv = row.riverLabel.value; if (!r.rivers.includes(rv)) r.rivers.push(rv) }
+    if (row.depLabel && !r.department) r.department = row.depLabel.value
+    if (row.depCode && !r.departmentCode) r.departmentCode = row.depCode.value
+    if (row.regLabel && !r.region) r.region = row.regLabel.value
+    if (row.mayorLabel && !r.mayor) r.mayor = row.mayorLabel.value
+    if (row.mayorSex && !r.mayorGender) r.mayorGender = row.mayorSex.value
+    if (row.image && !r.image) r.image = row.image.value
+  }
+  return results
 }
 
 function computeSide(fromLat, fromLng, heading, toLat, toLng) {

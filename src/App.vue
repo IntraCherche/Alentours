@@ -1,9 +1,9 @@
 <template>
-  <div class="app">
+  <div class="app" :style="{ '--town-scale': townFontScale }">
 
     <!-- ── TOP BAR ──────────────────────────────────────────────── -->
     <header class="topbar">
-      <div class="topbar__logo">⬡ RoadDash</div>
+      <div class="topbar__logo">⬡ Alentours</div>
       <div class="topbar__route">{{ routeName || t('noRoute') }}</div>
       <div class="topbar__gps">
         <span class="dot" :class="gpsStatusClass"></span>
@@ -27,7 +27,7 @@
           <div class="panel__label">{{ t('routeProgress') }}</div>
           <div class="progress-track">
             <div class="progress-fill" :style="progressFillStyle"></div>
-            <div class="progress-thumb" :style="progressThumbStyle"></div>
+            <div class="progress-thumb" :style="{ left: (progress ?? 0) + '%' }">{{ vehicleIcon }}</div>
           </div>
           <div class="progress-stats">
             <span>{{ formatKm(distanceDone) }}</span>
@@ -44,20 +44,51 @@
             <div class="town-side" :class="nearest.side">{{ sideLabel(nearest.side) }}</div>
           </div>
           <div class="town-dist">{{ formatKm(nearest.distance) }} away · {{ nearest.place }}</div>
-          <div v-if="nearest.wiki" class="town-extract">{{ truncate(nearest.wiki.extract, 280) }}</div>
-          <div v-else class="town-extract town-extract--dim">{{ t('noDescription') }}</div>
-        </div>
 
-        <!-- Other nearby -->
-        <div class="panel panel--list" v-if="others.length">
-          <div class="panel__label">{{ t('alsoNearby') }}</div>
-          <ul class="nearby-list">
-            <li v-for="town in others" :key="town.id" class="nearby-item">
-              <span class="nearby-side" :class="town.side">{{ sideIcon(town.side) }}</span>
-              <span class="nearby-name">{{ town.name }}</span>
-              <span class="nearby-dist">{{ formatKm(town.distance) }}</span>
-            </li>
-          </ul>
+          <!-- Landmark image -->
+          <img
+            v-if="nearest.wiki?.thumbnail"
+            :src="nearest.wiki.thumbnail"
+            :alt="nearest.name"
+            class="town-thumbnail"
+          />
+
+          <!-- Enriched fact rows -->
+          <div v-if="nearest.wiki" class="town-facts">
+            <div v-if="nearest.wiki.population" class="fact-row">
+              <span class="fact-key">{{ t('population') }}</span>
+              <span class="fact-val">{{ formatPopulation(nearest.wiki.population) }}</span>
+            </div>
+            <div v-if="nearest.wiki.demonyms?.length" class="fact-row">
+              <span class="fact-key">{{ t('inhabitants') }}</span>
+              <span class="fact-val">{{ nearest.wiki.demonyms.join(' / ') }}</span>
+            </div>
+            <div v-if="nearest.wiki.rivers?.length" class="fact-row">
+              <span class="fact-key">{{ t('rivers') }}</span>
+              <span class="fact-val">{{ nearest.wiki.rivers.join(', ') }}</span>
+            </div>
+            <div v-if="nearest.wiki.department" class="fact-row">
+              <span class="fact-key">{{ t('department') }}</span>
+              <span class="fact-val">
+                {{ nearest.wiki.department }}<span v-if="nearest.wiki.departmentCode" class="fact-sub"> ({{ nearest.wiki.departmentCode }})</span><span v-if="nearest.wiki.region" class="fact-sub"> · {{ nearest.wiki.region }}</span>
+              </span>
+            </div>
+            <div v-if="nearest.wiki.mayor" class="fact-row">
+              <span class="fact-key">{{ t('mayor') }}</span>
+              <span class="fact-val">
+                <span class="gender-sign" :class="nearest.wiki.mayorGender">{{ nearest.wiki.mayorGender === 'female' ? '♀' : nearest.wiki.mayorGender === 'male' ? '♂' : '' }}</span>{{ nearest.wiki.mayor }}
+              </span>
+            </div>
+          </div>
+
+          <div v-if="nearest.wiki" class="extract-wrap" ref="extractWrapRef">
+            <div
+              class="extract-inner town-extract"
+              :class="{ 'extract-inner--scroll': extractDist > 0 }"
+              :style="extractDist > 0 ? { '--dist': `-${extractDist}px`, '--scroll-dur': `${extractDur}s` } : {}"
+            >{{ nearest.wiki.extract }}</div>
+          </div>
+          <div v-else class="town-extract town-extract--dim">{{ t('noDescription') }}</div>
         </div>
 
         <!-- Waiting -->
@@ -160,6 +191,20 @@
           </select>
         </section>
 
+        <!-- Town info text size -->
+        <section class="drawer-section">
+          <div class="section-label">{{ t('textSize') }}</div>
+          <div class="size-control">
+            <span class="size-a">A</span>
+            <div class="size-track">
+              <div class="size-bar" :style="{ width: ((townFontScale - 0.8) / 1.2 * 100) + '%' }"></div>
+              <input type="range" class="size-range" v-model.number="townFontScale" min="0.8" max="2.0" step="0.1" />
+            </div>
+            <span class="size-a size-a--lg">A</span>
+          </div>
+          <div class="size-preview">{{ nearest?.name ?? 'Lyon' }}</div>
+        </section>
+
         <!-- Vehicle icon -->
         <section class="drawer-section">
           <div class="section-label">{{ t('vehicleIcon') }}</div>
@@ -182,7 +227,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useTheme } from './composables/useTheme.js'
 import { useLocale } from './composables/useLocale.js'
 import { useGeolocation } from './composables/useGeolocation.js'
@@ -219,7 +264,6 @@ const { towns, prefetching, prefetchProgress, prefetchForRoute, fetchNearbyTowns
 
 // ── Computed ───────────────────────────────────────────────────────────
 const nearest = computed(() => towns.value?.[0] ?? null)
-const others  = computed(() => towns.value?.slice(1) ?? [])
 
 const progressFillStyle = computed(() => {
   const pct = progress.value ?? 0
@@ -232,20 +276,40 @@ const progressFillStyle = computed(() => {
   }
 })
 
-const progressThumbStyle = computed(() => {
-  const pct = progress.value ?? 0
-  const hue = pct * 1.2
-  return {
-    left: pct + '%',
-    background: `hsl(${hue}deg, 80%, 45%)`,
-  }
-})
 
 const gpsStatusClass = computed(() => {
   if (watching.value && position.value)   return 'live'
   if (!watching.value && !position.value) return 'off'
   return 'stale'
 })
+
+// ── Town font scale ────────────────────────────────────────────────────
+const townFontScale = ref(parseFloat(localStorage.getItem('townFontScale') || '1.2'))
+watch(townFontScale, (v) => localStorage.setItem('townFontScale', String(v)))
+
+// ── Extract auto-scroll ────────────────────────────────────────────────
+const extractWrapRef = ref(null)
+const extractDist    = ref(0)
+const extractDur     = ref(15)
+
+watch(() => nearest.value?.wiki?.extract, async () => {
+  await nextTick()
+  measureExtract()
+})
+watch(townFontScale, async () => {
+  await nextTick()
+  measureExtract()
+})
+
+function measureExtract() {
+  const el = extractWrapRef.value
+  if (!el) return
+  const inner = el.querySelector('.extract-inner')
+  if (!inner) return
+  const dist = Math.max(0, inner.scrollHeight - el.clientHeight)
+  extractDist.value = dist
+  extractDur.value = Math.round(dist / 15 + 5)
+}
 
 // ── Vehicle icon ───────────────────────────────────────────────────────
 const vehicleIcon = ref(localStorage.getItem('vehicleIcon') || '🚐')
@@ -541,9 +605,12 @@ function formatKm(m) {
   if (!m) return '—'
   return m >= 1000 ? (m / 1000).toFixed(1) + ' km' : Math.round(m) + ' m'
 }
+function formatPopulation(n) {
+  if (!n) return '—'
+  return n.toLocaleString(lang.value === 'fr' ? 'fr-FR' : 'en-US')
+}
 function formatSpeed(ms) { return Math.round(ms * 3.6) + ' km/h' }
 function truncate(str, n) { return str?.length > n ? str.slice(0, n) + '…' : str }
-function sideIcon(s)  { return { left: '◀', right: '▶', ahead: '▲', behind: '▼', unknown: '·' }[s] ?? '·' }
 function sideLabel(s) {
   return { left: t('sideLeft'), right: t('sideRight'), ahead: t('sideAhead'), behind: t('sideBehind'), unknown: '' }[s] ?? ''
 }
@@ -651,9 +718,15 @@ function sideLabel(s) {
   flex-direction: column;
   gap: 0.5rem;
 }
+/* Both panels scale with the same setting */
+.panel--progress,
+.panel--town {
+  font-size: calc(1rem * var(--town-scale, 1));
+}
+
 .panel__label {
   font-family: var(--font-display);
-  font-size: 0.65rem;
+  font-size: 0.65em;
   letter-spacing: 0.15em;
   color: var(--text-dim);
   text-transform: uppercase;
@@ -674,20 +747,23 @@ function sideLabel(s) {
   position: absolute;
   top: 50%;
   transform: translate(-50%, -50%);
-  width: 14px; height: 14px;
-  border-radius: 50%;
-  border: 2px solid var(--bg-deep);
-  transition: left 1s ease, background 1s ease;
+  font-size: 1.1em;
+  line-height: 1;
+  transition: left 1s ease;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.45));
+  user-select: none;
+  pointer-events: none;
 }
 .progress-stats {
   display: flex;
   justify-content: space-between;
-  font-size: 0.78rem;
+  font-size: 0.78em;
   color: var(--text-muted);
+  font-family: var(--font-display);
 }
 .progress-pct {
   font-family: var(--font-display);
-  font-size: 1rem;
+  font-size: 1em;
   font-weight: 700;
   color: var(--accent);
 }
@@ -700,17 +776,18 @@ function sideLabel(s) {
 }
 .town-name {
   font-family: var(--font-display);
-  font-size: 1.6rem;
+  font-size: 1.6em;
   font-weight: 700;
   color: var(--text-primary);
   line-height: 1.1;
+  letter-spacing: 0.03em;
 }
 .town-side {
   font-family: var(--font-display);
-  font-size: 0.75rem;
+  font-size: 0.7em;
   font-weight: 700;
   letter-spacing: 0.1em;
-  padding: 0.2rem 0.5rem;
+  padding: 0.2em 0.5em;
   border-radius: 4px;
   background: var(--bg-panel);
   white-space: nowrap;
@@ -718,17 +795,67 @@ function sideLabel(s) {
 .town-side.left  { color: var(--blue);   border: 1px solid var(--blue); }
 .town-side.right { color: var(--accent); border: 1px solid var(--accent); }
 .town-side.ahead { color: var(--green);  border: 1px solid var(--green); }
-.town-dist    { font-size: 0.78rem; color: var(--text-muted); }
-.town-extract { font-size: 0.82rem; color: var(--text-muted); line-height: 1.55; }
-.town-extract--dim { color: var(--text-dim); font-style: italic; }
+.town-dist { font-size: 0.8em; color: var(--text-primary); font-weight: 500; }
 
-.nearby-list { list-style: none; display: flex; flex-direction: column; gap: 0.35rem; }
-.nearby-item { display: flex; align-items: center; gap: 0.5rem; font-size: 0.82rem; }
-.nearby-side { font-size: 0.65rem; color: var(--text-dim); width: 14px; text-align: center; }
-.nearby-side.left  { color: var(--blue); }
-.nearby-side.right { color: var(--accent); }
-.nearby-name { flex: 1; color: var(--text-muted); }
-.nearby-dist { color: var(--text-dim); font-size: 0.75rem; }
+.town-thumbnail {
+  width: 100%;
+  height: 8em;
+  object-fit: cover;
+  border-radius: var(--radius);
+  display: block;
+}
+
+.town-facts {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25em;
+  background: var(--bg-panel);
+  border-radius: var(--radius);
+  padding: 0.5em 0.65em;
+}
+.fact-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5em;
+  font-size: 0.82em;
+  line-height: 1.4;
+}
+.fact-key {
+  font-family: var(--font-display);
+  font-size: 0.72em;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  min-width: 5em;
+  flex-shrink: 0;
+}
+.fact-val { color: var(--text-primary); flex: 1; font-weight: 500; }
+.fact-sub { color: var(--text-muted); font-weight: 400; }
+
+.gender-sign { margin-right: 0.2em; }
+.gender-sign.female { color: var(--accent); }
+.gender-sign.male   { color: var(--blue); }
+
+/* ── Extract scroll ───────────────────────────────────────────────── */
+.extract-wrap {
+  overflow: hidden;
+  max-height: 4.5em;
+}
+.town-extract {
+  font-size: 0.88em;
+  color: var(--text-primary);
+  line-height: 1.6;
+  font-weight: 400;
+}
+.town-extract--dim { color: var(--text-muted); font-style: italic; }
+.extract-inner--scroll {
+  animation: vscroll var(--scroll-dur, 15s) ease-in-out infinite;
+}
+@keyframes vscroll {
+  0%, 18%   { transform: translateY(0); }
+  82%, 100% { transform: translateY(var(--dist, 0px)); }
+}
 
 .panel--waiting {
   flex: 1;
@@ -878,6 +1005,56 @@ function sideLabel(s) {
 .error-text { font-size: 0.85rem; color: var(--red); }
 
 .lang-select { cursor: pointer; }
+
+/* ── Town size slider ─────────────────────────────────────────────── */
+.size-control {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.size-a {
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-dim);
+  user-select: none;
+}
+.size-a--lg { font-size: 1.5rem; }
+.size-track {
+  flex: 1;
+  height: 8px;
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  position: relative;
+  overflow: hidden;
+}
+.size-bar {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 4px;
+  pointer-events: none;
+  transition: width 0.1s;
+}
+.size-range {
+  position: absolute;
+  inset: -4px 0;
+  width: 100%;
+  height: calc(100% + 8px);
+  opacity: 0;
+  cursor: pointer;
+  margin: 0;
+}
+.size-preview {
+  font-family: var(--font-display);
+  font-size: calc(1rem * var(--town-scale, 1));
+  font-weight: 700;
+  color: var(--text-primary);
+  text-align: center;
+  margin-top: 0.4rem;
+  letter-spacing: 0.03em;
+  transition: font-size 0.1s;
+}
 
 .icon-picker {
   display: flex;

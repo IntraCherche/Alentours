@@ -19,6 +19,11 @@ const translations = {
     sideBehind: '▼ BEHIND',
     noDescription: 'No description available.',
     alsoNearby: 'Also Nearby',
+    population: 'Population',
+    inhabitants: 'Inhabitants',
+    rivers: 'Rivers',
+    department: 'Dept / Region',
+    mayor: 'Mayor',
     startGpsHint: 'Start GPS in settings to begin',
     planTripHint: 'Tap ⚙ to plan your trip',
     planTripSub: 'Enter your origin and destination',
@@ -39,6 +44,7 @@ const translations = {
     startGps: '▶ Start GPS',
     language: 'Language',
     vehicleIcon: 'Vehicle Icon',
+    textSize: 'Town Info Size',
   },
   fr: {
     noRoute: 'Aucun itinéraire',
@@ -54,6 +60,11 @@ const translations = {
     sideBehind: '▼ DERRIÈRE',
     noDescription: 'Aucune description disponible.',
     alsoNearby: 'À proximité',
+    population: 'Population',
+    inhabitants: 'Habitants',
+    rivers: 'Cours d\'eau',
+    department: 'Dépt / Région',
+    mayor: 'Maire',
     startGpsHint: 'Démarrer le GPS dans les paramètres',
     planTripHint: 'Appuyez sur ⚙ pour planifier',
     planTripSub: 'Entrez votre départ et destination',
@@ -74,6 +85,7 @@ const translations = {
     startGps: '▶ Démarrer GPS',
     language: 'Langue',
     vehicleIcon: 'Icône du véhicule',
+    textSize: 'Taille des infos',
   }
 }
 
