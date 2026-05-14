@@ -1,0 +1,934 @@
+<template>
+  <div class="app">
+
+    <!-- ── TOP BAR ──────────────────────────────────────────────── -->
+    <header class="topbar">
+      <div class="topbar__logo">⬡ RoadDash</div>
+      <div class="topbar__route">{{ routeName || t('noRoute') }}</div>
+      <div class="topbar__gps">
+        <span class="dot" :class="gpsStatusClass"></span>
+        <span>{{ position ? position.lat.toFixed(4) + ', ' + position.lng.toFixed(4) : t('waitingGps') }}</span>
+        <span v-if="position?.speed != null" class="topbar__speed">{{ formatSpeed(position.speed) }}</span>
+      </div>
+      <button class="icon-btn" @click="toggleTheme" :title="isDark ? t('lightMode') : t('darkMode')">
+        {{ isDark ? '☾' : '☀' }}
+      </button>
+      <button class="icon-btn" :class="{ active: settingsOpen }" @click="settingsOpen = !settingsOpen" :title="t('settings')">⚙</button>
+    </header>
+
+    <!-- ── MAIN GRID ────────────────────────────────────────────── -->
+    <main class="main">
+      <div class="map-wrap" ref="mapContainer"></div>
+
+      <aside class="aside">
+
+        <!-- Progress -->
+        <div class="panel panel--progress" v-if="routeLoaded">
+          <div class="panel__label">{{ t('routeProgress') }}</div>
+          <div class="progress-track">
+            <div class="progress-fill" :style="progressFillStyle"></div>
+            <div class="progress-thumb" :style="progressThumbStyle"></div>
+          </div>
+          <div class="progress-stats">
+            <span>{{ formatKm(distanceDone) }}</span>
+            <span class="progress-pct">{{ progress?.toFixed(0) ?? 0 }}%</span>
+            <span>{{ formatKm(distanceLeft) }}</span>
+          </div>
+        </div>
+
+        <!-- Nearest town -->
+        <div class="panel panel--town" v-if="nearest">
+          <div class="panel__label">{{ t('nearestTown') }}</div>
+          <div class="town-header">
+            <div class="town-name">{{ nearest.name }}</div>
+            <div class="town-side" :class="nearest.side">{{ sideLabel(nearest.side) }}</div>
+          </div>
+          <div class="town-dist">{{ formatKm(nearest.distance) }} away · {{ nearest.place }}</div>
+          <div v-if="nearest.wiki" class="town-extract">{{ truncate(nearest.wiki.extract, 280) }}</div>
+          <div v-else class="town-extract town-extract--dim">{{ t('noDescription') }}</div>
+        </div>
+
+        <!-- Other nearby -->
+        <div class="panel panel--list" v-if="others.length">
+          <div class="panel__label">{{ t('alsoNearby') }}</div>
+          <ul class="nearby-list">
+            <li v-for="town in others" :key="town.id" class="nearby-item">
+              <span class="nearby-side" :class="town.side">{{ sideIcon(town.side) }}</span>
+              <span class="nearby-name">{{ town.name }}</span>
+              <span class="nearby-dist">{{ formatKm(town.distance) }}</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Waiting -->
+        <div v-if="!position" class="panel panel--waiting">
+          <div class="waiting-icon">⌛</div>
+          <div class="waiting-text">
+            {{ routeLoaded ? t('startGpsHint') : t('planTripHint') }}
+            <br><small>{{ routeLoaded ? '' : t('planTripSub') }}</small>
+          </div>
+        </div>
+
+      </aside>
+    </main>
+
+    <!-- ── SETTINGS DRAWER ──────────────────────────────────────── -->
+    <div v-if="settingsOpen" class="backdrop" @click="settingsOpen = false"></div>
+
+    <Transition name="drawer">
+      <div class="settings-drawer" v-if="settingsOpen">
+
+        <div class="drawer-header">
+          <span class="drawer-title">{{ t('settings') }}</span>
+          <button class="icon-btn" @click="settingsOpen = false">✕</button>
+        </div>
+
+        <!-- Trip setup -->
+        <section class="drawer-section" v-if="!routeLoaded">
+          <div class="section-label">{{ t('planTrip') }}</div>
+
+          <div class="input-group">
+            <label class="input-label">{{ t('fromLabel') }}</label>
+            <div class="autocomplete">
+              <input class="text-input" v-model="fromQuery" :placeholder="t('fromPlaceholder')"
+                @input="onFromInput" @keydown.enter="selectFirstFrom" />
+              <ul v-if="fromSuggestions.length" class="suggestions">
+                <li v-for="s in fromSuggestions" :key="s.lat + s.lng" class="suggestion" @click="selectFrom(s)">{{ s.name }}</li>
+              </ul>
+            </div>
+            <span v-if="fromPlace" class="resolved">✓ {{ fromPlace.name }}</span>
+          </div>
+
+          <div class="input-group">
+            <label class="input-label">{{ t('toLabel') }}</label>
+            <div class="autocomplete">
+              <input class="text-input" v-model="toQuery" :placeholder="t('toPlaceholder')"
+                @input="onToInput" @keydown.enter="selectFirstTo" />
+              <ul v-if="toSuggestions.length" class="suggestions">
+                <li v-for="s in toSuggestions" :key="s.lat + s.lng" class="suggestion" @click="selectTo(s)">{{ s.name }}</li>
+              </ul>
+            </div>
+            <span v-if="toPlace" class="resolved">✓ {{ toPlace.name }}</span>
+          </div>
+
+          <button class="btn btn--primary" :disabled="!fromPlace || !toPlace || routeLoading" @click="startTrip">
+            {{ routeLoading ? t('buildingRoute') : t('startTrip') }}
+          </button>
+          <p v-if="routeError" class="error-text">{{ routeError }}</p>
+        </section>
+
+        <!-- Pre-fetching towns -->
+        <section class="drawer-section" v-if="routeLoaded && prefetching">
+          <div class="section-label">{{ t('preloadingTowns') }}</div>
+          <div class="mini-progress">
+            <div class="mini-progress__bar" :style="{ width: prefetchProgress + '%' }"></div>
+          </div>
+          <p class="meta-text">{{ prefetchProgress }}{{ t('preloadingWikiSuffix') }}</p>
+        </section>
+
+        <!-- Active trip -->
+        <section class="drawer-section" v-if="routeLoaded && !prefetching">
+          <div class="section-label">{{ t('activeTrip') }}</div>
+          <div class="route-banner">
+            <span>{{ origin?.name }}</span>
+            <span class="route-arrow">→</span>
+            <span>{{ destination?.name }}</span>
+          </div>
+          <p class="meta-text">{{ formatKm(totalDistance) }} {{ t('total') }}</p>
+          <button class="btn btn--small" @click="resetTrip">{{ t('newTrip') }}</button>
+        </section>
+
+        <!-- GPS -->
+        <section class="drawer-section" v-if="routeLoaded && !prefetching">
+          <div class="section-label">{{ t('gps') }}</div>
+          <button class="btn" :class="{ active: watching }" @click="toggleGps">
+            {{ watching ? t('stopGps') : t('startGps') }}
+          </button>
+          <p v-if="position" class="meta-text">
+            {{ position.lat.toFixed(5) }}, {{ position.lng.toFixed(5) }}
+            <span v-if="position.speed != null"> · {{ formatSpeed(position.speed) }}</span>
+          </p>
+          <p v-if="geoError" class="error-text">{{ geoError }}</p>
+        </section>
+
+        <!-- Language -->
+        <section class="drawer-section">
+          <div class="section-label">{{ t('language') }}</div>
+          <select class="text-input lang-select" v-model="lang">
+            <option value="en">English</option>
+            <option value="fr">Français</option>
+          </select>
+        </section>
+
+        <!-- Vehicle icon -->
+        <section class="drawer-section">
+          <div class="section-label">{{ t('vehicleIcon') }}</div>
+          <div class="icon-picker">
+            <button
+              v-for="ic in vehicleIcons"
+              :key="ic.value"
+              class="icon-pick-btn"
+              :class="{ active: vehicleIcon === ic.value }"
+              @click="vehicleIcon = ic.value"
+              :title="ic.label"
+            >{{ ic.value }}</button>
+          </div>
+        </section>
+
+      </div>
+    </Transition>
+
+  </div>
+</template>
+
+<script setup>
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { useTheme } from './composables/useTheme.js'
+import { useLocale } from './composables/useLocale.js'
+import { useGeolocation } from './composables/useGeolocation.js'
+import { useRouteProgress } from './composables/useRouteProgress.js'
+import { useNearbyTowns } from './composables/useNearbyTowns.js'
+import { useSession } from './composables/useSession.js'
+import { geocodeSuggestions } from './composables/useGeocoding.js'
+
+// ── Theme ──────────────────────────────────────────────────────────────
+const { isDark, toggle: toggleTheme } = useTheme()
+
+// ── Locale ─────────────────────────────────────────────────────────────
+const { lang, t } = useLocale()
+
+// ── Settings drawer ────────────────────────────────────────────────────
+const settingsOpen = ref(false)
+
+// ── Geolocation ────────────────────────────────────────────────────────
+const { position, error: geoError, watching, start: startGps, stop: stopGps } = useGeolocation()
+
+// ── Session ────────────────────────────────────────────────────────────
+const { loadSession, saveSession, clearSession, saveLocations, loadLocations } = useSession()
+
+// ── Route ──────────────────────────────────────────────────────────────
+const {
+  loadRoute, updatePosition, sampleRoutePoints, restoreRoute,
+  routePoints, totalDistance, progress, distanceDone, distanceLeft,
+  routeLoaded, routeName, origin, destination,
+  loading: routeLoading, error: routeError
+} = useRouteProgress()
+
+// ── Nearby towns ───────────────────────────────────────────────────────
+const { towns, prefetching, prefetchProgress, prefetchForRoute, fetchNearbyTowns, restoreCache } = useNearbyTowns()
+
+// ── Computed ───────────────────────────────────────────────────────────
+const nearest = computed(() => towns.value?.[0] ?? null)
+const others  = computed(() => towns.value?.slice(1) ?? [])
+
+const progressFillStyle = computed(() => {
+  const pct = progress.value ?? 0
+  const hue = pct * 1.2   // 0° red → 120° green
+  const color = `hsl(${hue}deg, 80%, 45%)`
+  const colorLight = `hsl(${hue}deg, 60%, 80%)`
+  return {
+    width: pct + '%',
+    background: `linear-gradient(90deg, ${colorLight}, ${color})`,
+  }
+})
+
+const progressThumbStyle = computed(() => {
+  const pct = progress.value ?? 0
+  const hue = pct * 1.2
+  return {
+    left: pct + '%',
+    background: `hsl(${hue}deg, 80%, 45%)`,
+  }
+})
+
+const gpsStatusClass = computed(() => {
+  if (watching.value && position.value)   return 'live'
+  if (!watching.value && !position.value) return 'off'
+  return 'stale'
+})
+
+// ── Vehicle icon ───────────────────────────────────────────────────────
+const vehicleIcon = ref(localStorage.getItem('vehicleIcon') || '🚐')
+watch(vehicleIcon, (v) => {
+  localStorage.setItem('vehicleIcon', v)
+  if (vehicleMarker && L) vehicleMarker.setIcon(makeVehicleIcon(v))
+})
+
+const vehicleIcons = [
+  { value: '🚐', label: 'Motorhome' },
+  { value: '🚗', label: 'Car' },
+  { value: '🚲', label: 'Bicycle' },
+  { value: '🏍', label: 'Motorbike' },
+  { value: '🚚', label: 'Truck' },
+]
+
+// ── Map ────────────────────────────────────────────────────────────────
+let L = null, map = null
+let vehicleMarker = null, routePolyline = null, actualPolyline = null
+let startMarker = null, endMarker = null
+const mapContainer = ref(null)
+
+function makeVehicleIcon(icon) {
+  return L.divIcon({
+    className: '',
+    html: `<div class="vehicle-marker-emoji">${icon}</div>`,
+    iconSize: [32, 32],
+    iconAnchor: [16, 16]
+  })
+}
+
+// ── Actual-path tracking (persisted for session resume) ────────────────
+const actualPath = ref([])   // [[lat, lng], …] — grows with each GPS fix
+let lastSavedPosition       = null   // { lat, lng } from restored session
+let isFirstPositionAfterRestore = false
+
+async function initMap() {
+  L = await import('leaflet')
+  await import('leaflet/dist/leaflet.css')
+  map = L.map(mapContainer.value, {
+    zoomControl: false,
+    attributionControl: false,
+    dragging: false,
+    scrollWheelZoom: false,
+    doubleClickZoom: false,
+    keyboard: false
+  }).setView([46.5, 2.3], 6)
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 15 }).addTo(map)
+}
+
+function drawPlannedRoute() {
+  if (!map || !L || !routePoints.value.length) return
+
+  const latlngs = routePoints.value.map(p => [p.lat, p.lng])
+
+  routePolyline = L.polyline(latlngs, {
+    color: '#7090b0',
+    weight: 3,
+    opacity: 0.55,
+    dashArray: '10, 8'
+  }).addTo(map)
+
+  startMarker = L.marker([origin.value.lat, origin.value.lng], {
+    icon: L.divIcon({
+      className: '',
+      html: '<div class="route-pin route-pin--start">A</div>',
+      iconSize: [26, 26],
+      iconAnchor: [13, 13]
+    })
+  }).addTo(map)
+
+  endMarker = L.marker([destination.value.lat, destination.value.lng], {
+    icon: L.divIcon({
+      className: '',
+      html: '<div class="route-pin route-pin--end">B</div>',
+      iconSize: [26, 26],
+      iconAnchor: [13, 13]
+    })
+  }).addTo(map)
+
+  map.invalidateSize()
+  map.fitBounds(routePolyline.getBounds(), { padding: [48, 48] })
+}
+
+function clearMapLayers() {
+  for (const layer of [routePolyline, actualPolyline, startMarker, endMarker, vehicleMarker]) {
+    if (layer) map?.removeLayer(layer)
+  }
+  routePolyline = null; actualPolyline = null
+  startMarker = null; endMarker = null; vehicleMarker = null
+}
+
+function drawActualPath() {
+  if (!map || !L || !actualPath.value.length) return
+  if (actualPolyline) map.removeLayer(actualPolyline)
+  actualPolyline = L.polyline(actualPath.value, {
+    color: '#c97800',
+    weight: 5,
+    opacity: 0.85
+  }).addTo(map)
+}
+
+function updateMap(lat, lng) {
+  if (!map || !L) return
+
+  // Track every GPS fix for session persistence
+  actualPath.value.push([lat, lng])
+
+  // Grow the actual path polyline
+  if (!actualPolyline) {
+    actualPolyline = L.polyline([[lat, lng]], {
+      color: '#c97800',
+      weight: 5,
+      opacity: 0.85
+    }).addTo(map)
+  } else {
+    actualPolyline.addLatLng([lat, lng])
+  }
+
+  // Update vehicle marker
+  if (!vehicleMarker) {
+    vehicleMarker = L.marker([lat, lng], {
+      icon: makeVehicleIcon(vehicleIcon.value)
+    }).addTo(map)
+  } else {
+    vehicleMarker.setLatLng([lat, lng])
+  }
+
+  // If no route is shown, just follow the vehicle
+  if (!routePolyline) {
+    map.setView([lat, lng], 12, { animate: true, duration: 1 })
+  }
+}
+
+// ── Session persistence helpers ────────────────────────────────────────
+let saveTimer = null
+
+function persistSession() {
+  if (!routeLoaded.value) return
+  saveSession({
+    fromPlace:    fromPlace.value,
+    toPlace:      toPlace.value,
+    routePoints:  routePoints.value,
+    totalDistance: totalDistance.value,
+    origin:       origin.value,
+    destination:  destination.value,
+    routeName:    routeName.value,
+    lastPosition: position.value ? { lat: position.value.lat, lng: position.value.lng } : null,
+    actualPath:   actualPath.value
+  })
+}
+
+function scheduleSave() {
+  clearTimeout(saveTimer)
+  saveTimer = setTimeout(persistSession, 30_000)
+}
+
+function onVisibilityChange() {
+  if (document.visibilityState === 'hidden') persistSession()
+}
+
+// ── Restore a previously-saved session on startup ──────────────────────
+function restoreFromSession() {
+  const session = loadSession()
+  if (!session) return false
+
+  restoreRoute(session)
+
+  fromPlace.value  = session.fromPlace
+  toPlace.value    = session.toPlace
+  fromQuery.value  = session.fromPlace?.name ?? ''
+  toQuery.value    = session.toPlace?.name   ?? ''
+  actualPath.value = session.actualPath ?? []
+  lastSavedPosition        = session.lastPosition
+  isFirstPositionAfterRestore = true
+
+  // Draw planned route first (blue dashed, bottom layer), then actual path on top
+  drawPlannedRoute()
+  drawActualPath()
+
+  if (lastSavedPosition && map) {
+    map.setView([lastSavedPosition.lat, lastSavedPosition.lng], 12)
+  }
+
+  restoreCache()
+  startGps()
+  return true
+}
+
+onMounted(async () => {
+  await initMap()
+  const resumed = restoreFromSession()
+  if (!resumed) {
+    restoreCache()
+    const locs = loadLocations()
+    if (locs) {
+      if (locs.fromPlace) { fromPlace.value = locs.fromPlace; fromQuery.value = locs.fromPlace.name }
+      if (locs.toPlace)   { toPlace.value   = locs.toPlace;   toQuery.value   = locs.toPlace.name }
+    }
+  }
+  document.addEventListener('visibilitychange', onVisibilityChange)
+})
+
+onUnmounted(() => {
+  if (map) map.remove()
+  document.removeEventListener('visibilitychange', onVisibilityChange)
+})
+
+// ── Draw route on map when route loads ────────────────────────────────
+watch(routeLoaded, (loaded) => {
+  // Guard against double-draw when restoring (drawPlannedRoute is called directly above)
+  if (loaded && !routePolyline) drawPlannedRoute()
+})
+
+// ── GPS → update everything ────────────────────────────────────────────
+watch(position, async (pos) => {
+  if (!pos) return
+
+  // On first fix after a session restore: draw a straight line from the last
+  // saved position to the current one, bridging the gap while the app was closed.
+  if (isFirstPositionAfterRestore) {
+    if (lastSavedPosition && actualPolyline) {
+      actualPolyline.addLatLng([lastSavedPosition.lat, lastSavedPosition.lng])
+      actualPath.value.push([lastSavedPosition.lat, lastSavedPosition.lng])
+    }
+    isFirstPositionAfterRestore = false
+  }
+
+  updateMap(pos.lat, pos.lng)
+  if (routeLoaded.value) {
+    updatePosition(pos.lat, pos.lng)
+    await fetchNearbyTowns(pos.lat, pos.lng, pos.heading)
+  }
+  scheduleSave()
+})
+
+// ── Geocoding / autocomplete ───────────────────────────────────────────
+const fromQuery = ref(''), toQuery = ref('')
+const fromPlace = ref(null), toPlace = ref(null)
+const fromSuggestions = ref([]), toSuggestions = ref([])
+let fromTimer = null, toTimer = null
+
+function onFromInput() {
+  fromPlace.value = null
+  clearTimeout(fromTimer)
+  fromTimer = setTimeout(async () => { fromSuggestions.value = await geocodeSuggestions(fromQuery.value) }, 350)
+}
+function onToInput() {
+  toPlace.value = null
+  clearTimeout(toTimer)
+  toTimer = setTimeout(async () => { toSuggestions.value = await geocodeSuggestions(toQuery.value) }, 350)
+}
+function selectFrom(s) { fromPlace.value = s; fromQuery.value = s.name; fromSuggestions.value = []; saveLocations(s, toPlace.value) }
+function selectTo(s)   { toPlace.value = s;   toQuery.value = s.name;   toSuggestions.value = []; saveLocations(fromPlace.value, s) }
+function selectFirstFrom() { if (fromSuggestions.value[0]) selectFrom(fromSuggestions.value[0]) }
+function selectFirstTo()   { if (toSuggestions.value[0])   selectTo(toSuggestions.value[0]) }
+
+// ── Trip lifecycle ─────────────────────────────────────────────────────
+async function startTrip() {
+  await loadRoute(fromPlace.value, toPlace.value)
+  if (routeLoaded.value) {
+    const samples = sampleRoutePoints(10000)
+    await prefetchForRoute(samples)
+    startGps()
+    settingsOpen.value = false
+    // Persist as soon as the route is ready (before any GPS fix arrives)
+    persistSession()
+  }
+}
+
+function resetTrip() {
+  stopGps()
+  clearMapLayers()
+  clearSession()
+  clearTimeout(saveTimer)
+  map?.setView([46.5, 2.3], 6)
+  routeLoaded.value = false
+  routeName.value = ''
+  towns.value = []
+  actualPath.value = []
+  lastSavedPosition = null
+  isFirstPositionAfterRestore = false
+  fromQuery.value = ''
+  toQuery.value = ''
+  fromPlace.value = null
+  toPlace.value = null
+}
+
+function toggleGps() { watching.value ? stopGps() : startGps() }
+
+// ── Helpers ────────────────────────────────────────────────────────────
+function formatKm(m) {
+  if (!m) return '—'
+  return m >= 1000 ? (m / 1000).toFixed(1) + ' km' : Math.round(m) + ' m'
+}
+function formatSpeed(ms) { return Math.round(ms * 3.6) + ' km/h' }
+function truncate(str, n) { return str?.length > n ? str.slice(0, n) + '…' : str }
+function sideIcon(s)  { return { left: '◀', right: '▶', ahead: '▲', behind: '▼', unknown: '·' }[s] ?? '·' }
+function sideLabel(s) {
+  return { left: t('sideLeft'), right: t('sideRight'), ahead: t('sideAhead'), behind: t('sideBehind'), unknown: '' }[s] ?? ''
+}
+</script>
+
+<style scoped>
+/* ── Layout ───────────────────────────────────────────────────────── */
+.app {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-deep);
+  overflow: hidden;
+  font-family: var(--font-body);
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 0.6rem 1.5rem;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.topbar__logo {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+.topbar__route {
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  flex: 1;
+  letter-spacing: 0.04em;
+}
+.topbar__gps {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-family: 'Courier New', monospace;
+}
+.topbar__speed {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  color: var(--accent);
+  font-family: var(--font-display);
+  font-weight: 600;
+}
+.dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--text-dim);
+}
+.dot.live  { background: var(--green); box-shadow: 0 0 6px var(--green); }
+.dot.stale { background: var(--accent); }
+
+.icon-btn {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  border-radius: 20px;
+  padding: 0.15rem 0.55rem;
+  cursor: pointer;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  flex-shrink: 0;
+  transition: border-color 0.2s, color 0.2s;
+}
+.icon-btn:hover, .icon-btn.active { border-color: var(--accent); color: var(--accent); }
+
+.main {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  overflow: hidden;
+}
+.map-wrap { width: 100%; height: 100%; }
+.aside {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  overflow-y: auto;
+  background: var(--bg-panel);
+  border-left: 1px solid var(--border);
+}
+
+/* ── Panels ───────────────────────────────────────────────────────── */
+.panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 0.9rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.panel__label {
+  font-family: var(--font-display);
+  font-size: 0.65rem;
+  letter-spacing: 0.15em;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+
+.progress-track {
+  position: relative;
+  height: 8px;
+  background: var(--bg-panel);
+  border-radius: 4px;
+}
+.progress-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 1s ease;
+}
+.progress-thumb {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--bg-deep);
+  transition: left 1s ease, background 1s ease;
+}
+.progress-stats {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+.progress-pct {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.town-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.town-name {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.1;
+}
+.town-side {
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  background: var(--bg-panel);
+  white-space: nowrap;
+}
+.town-side.left  { color: var(--blue);   border: 1px solid var(--blue); }
+.town-side.right { color: var(--accent); border: 1px solid var(--accent); }
+.town-side.ahead { color: var(--green);  border: 1px solid var(--green); }
+.town-dist    { font-size: 0.78rem; color: var(--text-muted); }
+.town-extract { font-size: 0.82rem; color: var(--text-muted); line-height: 1.55; }
+.town-extract--dim { color: var(--text-dim); font-style: italic; }
+
+.nearby-list { list-style: none; display: flex; flex-direction: column; gap: 0.35rem; }
+.nearby-item { display: flex; align-items: center; gap: 0.5rem; font-size: 0.82rem; }
+.nearby-side { font-size: 0.65rem; color: var(--text-dim); width: 14px; text-align: center; }
+.nearby-side.left  { color: var(--blue); }
+.nearby-side.right { color: var(--accent); }
+.nearby-name { flex: 1; color: var(--text-muted); }
+.nearby-dist { color: var(--text-dim); font-size: 0.75rem; }
+
+.panel--waiting {
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  border-style: dashed;
+  min-height: 120px;
+}
+.waiting-icon { font-size: 2rem; }
+.waiting-text { font-size: 0.9rem; color: var(--text-muted); line-height: 1.6; }
+
+/* ── Settings drawer ──────────────────────────────────────────────── */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.25);
+  z-index: 99;
+}
+.settings-drawer {
+  position: fixed;
+  top: 0; right: 0; bottom: 0;
+  width: 380px;
+  background: var(--bg-panel);
+  border-left: 1px solid var(--border);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  overflow-y: auto;
+  padding: 1rem;
+}
+.drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 0.25rem;
+}
+.drawer-title {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--text-primary);
+}
+.drawer-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  padding: 0.9rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.drawer-section:last-child { border-bottom: none; }
+.section-label {
+  font-family: var(--font-display);
+  font-size: 0.65rem;
+  letter-spacing: 0.15em;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+
+.input-group { display: flex; flex-direction: column; gap: 0.3rem; }
+.input-label { font-size: 0.75rem; color: var(--text-muted); }
+.autocomplete { position: relative; }
+.text-input {
+  width: 100%;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  font-size: 1rem;
+  padding: 0.55rem 0.8rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.text-input:focus { border-color: var(--accent); }
+.suggestions {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0; right: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  list-style: none;
+  z-index: 10;
+  overflow: hidden;
+}
+.suggestion {
+  padding: 0.55rem 0.8rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.suggestion:hover { background: var(--bg-panel); color: var(--text-primary); }
+.resolved { font-size: 0.8rem; color: var(--green); }
+
+.route-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.route-arrow { color: var(--accent); }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  padding: 0.6rem 1.2rem;
+  border-radius: var(--radius);
+  cursor: pointer;
+  text-decoration: none;
+  transition: border-color 0.2s, color 0.2s;
+}
+.btn:hover, .btn.active { border-color: var(--accent); color: var(--accent); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn--primary { border-color: var(--accent); color: var(--accent); }
+.btn--small   { padding: 0.3rem 0.7rem; font-size: 0.8rem; }
+
+.mini-progress {
+  height: 6px;
+  background: var(--bg-card);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.mini-progress__bar {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 3px;
+  transition: width 0.5s ease;
+}
+
+.meta-text  { font-size: 0.85rem; color: var(--text-muted); }
+.error-text { font-size: 0.85rem; color: var(--red); }
+
+.lang-select { cursor: pointer; }
+
+.icon-picker {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+.icon-pick-btn {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.35rem 0.55rem;
+  font-size: 1.4rem;
+  cursor: pointer;
+  line-height: 1;
+  transition: border-color 0.2s, background 0.2s;
+}
+.icon-pick-btn:hover { border-color: var(--accent); }
+.icon-pick-btn.active { border-color: var(--accent); background: var(--bg-panel); }
+
+/* ── Drawer slide transition ──────────────────────────────────────── */
+.drawer-enter-active,
+.drawer-leave-active { transition: transform 0.25s ease; }
+.drawer-enter-from,
+.drawer-leave-to     { transform: translateX(100%); }
+</style>
+
+<style>
+/* Vehicle marker emoji — not scoped, injected by Leaflet */
+.vehicle-marker-emoji {
+  font-size: 26px;
+  line-height: 1;
+  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.55));
+  user-select: none;
+  pointer-events: none;
+}
+
+/* Route start / end pins */
+.route-pin {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 3px solid white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 800;
+  font-family: sans-serif;
+  color: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+}
+.route-pin--start { background: #2a9d5c; }
+.route-pin--end   { background: #cc3333; }
+</style>

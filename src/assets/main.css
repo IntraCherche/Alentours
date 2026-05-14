@@ -1,0 +1,63 @@
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Inter:wght@300;400;500&display=swap');
+
+:root {
+  /* Light theme (default) */
+  --bg-deep:      #eef2f7;
+  --bg-panel:     #ffffff;
+  --bg-card:      #f7f9fc;
+  --border:       #d4dce8;
+  --accent:       #c97800;
+  --accent-dim:   #f0c060;
+  --text-primary: #18273a;
+  --text-muted:   #516278;
+  --text-dim:     #9aafc4;
+  --green:        #1a9a52;
+  --red:          #c0392b;
+  --blue:         #1d6fa4;
+
+  /* Typography */
+  --font-display: 'Rajdhani', sans-serif;
+  --font-body:    'Inter', sans-serif;
+
+  /* Spacing */
+  --radius:       8px;
+  --radius-lg:    14px;
+}
+
+html.dark {
+  --bg-deep:      #0a1018;
+  --bg-panel:     #0f1923;
+  --bg-card:      #162230;
+  --border:       #1e3048;
+  --accent:       #f0a500;
+  --accent-dim:   #8a5e00;
+  --text-primary: #e8f0f8;
+  --text-muted:   #6a8aaa;
+  --text-dim:     #3a5570;
+  --green:        #2ecc71;
+  --red:          #e74c3c;
+  --blue:         #3498db;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #app {
+  width: 100%;
+  height: 100%;
+  background: var(--bg-deep);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Leaflet map tile filter — dark mode only */
+html.dark .leaflet-tile {
+  filter: brightness(0.6) saturate(0.7) hue-rotate(180deg) invert(1);
+}
+.leaflet-container {
+  background: var(--bg-deep);
+}

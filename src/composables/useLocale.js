@@ -1,0 +1,85 @@
+import { ref, watch } from 'vue'
+
+const lang = ref(localStorage.getItem('lang') || 'en')
+
+watch(lang, (v) => localStorage.setItem('lang', v))
+
+const translations = {
+  en: {
+    noRoute: 'No route loaded',
+    waitingGps: 'Waiting for GPS…',
+    lightMode: 'Light mode',
+    darkMode: 'Dark mode',
+    settings: 'Settings',
+    routeProgress: 'Route Progress',
+    nearestTown: 'Nearest Town',
+    sideLeft: '◀ LEFT',
+    sideRight: 'RIGHT ▶',
+    sideAhead: '▲ AHEAD',
+    sideBehind: '▼ BEHIND',
+    noDescription: 'No description available.',
+    alsoNearby: 'Also Nearby',
+    startGpsHint: 'Start GPS in settings to begin',
+    planTripHint: 'Tap ⚙ to plan your trip',
+    planTripSub: 'Enter your origin and destination',
+    planTrip: 'Plan Trip',
+    fromLabel: 'From',
+    fromPlaceholder: 'e.g. Toulouse',
+    toLabel: 'To',
+    toPlaceholder: 'e.g. Barcelona',
+    startTrip: '▶ Start Trip',
+    buildingRoute: 'Building route…',
+    preloadingTowns: 'Pre-loading towns…',
+    preloadingWikiSuffix: '% — downloading Wikipedia info for offline use',
+    activeTrip: 'Active Trip',
+    total: 'total',
+    newTrip: '✕ New trip',
+    gps: 'GPS',
+    stopGps: '⏹ Stop GPS',
+    startGps: '▶ Start GPS',
+    language: 'Language',
+    vehicleIcon: 'Vehicle Icon',
+  },
+  fr: {
+    noRoute: 'Aucun itinéraire',
+    waitingGps: 'En attente du GPS…',
+    lightMode: 'Mode clair',
+    darkMode: 'Mode sombre',
+    settings: 'Paramètres',
+    routeProgress: 'Avancement',
+    nearestTown: 'Ville la plus proche',
+    sideLeft: '◀ GAUCHE',
+    sideRight: 'DROITE ▶',
+    sideAhead: '▲ DEVANT',
+    sideBehind: '▼ DERRIÈRE',
+    noDescription: 'Aucune description disponible.',
+    alsoNearby: 'À proximité',
+    startGpsHint: 'Démarrer le GPS dans les paramètres',
+    planTripHint: 'Appuyez sur ⚙ pour planifier',
+    planTripSub: 'Entrez votre départ et destination',
+    planTrip: 'Planifier',
+    fromLabel: 'Départ',
+    fromPlaceholder: 'ex. Toulouse',
+    toLabel: 'Arrivée',
+    toPlaceholder: 'ex. Barcelone',
+    startTrip: '▶ Démarrer',
+    buildingRoute: "Calcul de l'itinéraire…",
+    preloadingTowns: 'Chargement des villes…',
+    preloadingWikiSuffix: '% — téléchargement des infos Wikipedia hors ligne',
+    activeTrip: 'Trajet en cours',
+    total: 'au total',
+    newTrip: '✕ Nouveau trajet',
+    gps: 'GPS',
+    stopGps: '⏹ Arrêter GPS',
+    startGps: '▶ Démarrer GPS',
+    language: 'Langue',
+    vehicleIcon: 'Icône du véhicule',
+  }
+}
+
+export function useLocale() {
+  function t(key) {
+    return translations[lang.value]?.[key] ?? translations.en[key] ?? key
+  }
+  return { lang, t }
+}
