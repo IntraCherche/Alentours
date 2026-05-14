@@ -1040,7 +1040,7 @@ function sideArrow(s) {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.25);
-  z-index: 99;
+  z-index: 1000;
 }
 .settings-drawer {
   position: fixed;
@@ -1048,7 +1048,7 @@ function sideArrow(s) {
   width: 380px;
   background: var(--bg-panel);
   border-left: 1px solid var(--border);
-  z-index: 100;
+  z-index: 1001;
   display: flex;
   flex-direction: column;
   gap: 0;
@@ -1252,7 +1252,7 @@ function sideArrow(s) {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.4);
-  z-index: 200;
+  z-index: 1002;
   display: flex;
   align-items: center;
   justify-content: center;
