@@ -6,6 +6,8 @@ You're cruising down the motorway and a city skyline appears on the horizon — 
 
 Designed to be glanced at from the passenger seat or mounted on a motorhome screen.
 
+**[Try it live on GitHub Pages →](https://intracherche.github.io/Alentours/)**
+
 ## What it does
 
 - **Directional awareness** — large arrows (⬅ ➡ ⬆ ⬇) flank the town name and show at a glance where the town sits relative to your heading; color-coded by direction
