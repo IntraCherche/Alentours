@@ -358,20 +358,25 @@ const asideScrollDur  = ref(20)
 
 watch(() => nearest.value?.wiki?.extract, async () => {
   await nextTick()
-  measureExtract()
   measureAside()
+  measureExtract()
 })
 watch(townFontScale, async () => {
   await nextTick()
-  measureExtract()
   measureAside()
+  measureExtract()
 })
 watch(nearest, async () => {
   await nextTick()
   measureAside()
+  measureExtract()
 })
 
 function measureExtract() {
+  if (asideScrollDist.value > 0) {
+    extractDist.value = 0
+    return
+  }
   const el = extractWrapRef.value
   if (!el) return
   const inner = el.querySelector('.extract-inner')
