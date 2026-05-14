@@ -1,13 +1,17 @@
 # ⬡ Alentours
 
-A road-trip companion app designed to be read from the passenger seat — or mounted on a motorhome screen.  
-Plan a route, start the GPS, and get live info about the towns you pass through.
+You're cruising down the motorway and a city skyline appears on the horizon — but is it to your left or your right? Is that Lyon, Valence, or something else entirely? You can't check your phone, your co-pilot isn't sure, and the motorway sign already flashed past. That small frustration inspired this app.
+
+**Alentours** is a road-trip companion that tells you, in real time, which town is nearby and exactly where it sits relative to your vehicle — left, right, straight ahead, or behind — so you always know what you're looking at through the window.
+
+Designed to be glanced at from the passenger seat or mounted on a motorhome screen.
 
 ## What it does
 
+- **Directional awareness** — large arrows (⬅ ➡ ⬆ ⬇) flank the town name and show at a glance where the town sits relative to your heading; color-coded by direction
 - **Route planning** — type an origin and destination, the app builds a road route and draws it on the map
 - **GPS tracking** — follows your position in real time, draws your actual path over the planned route, shows current speed
-- **Route progress** — progress bar with distance done, distance left, and percentage
+- **Route progress** — progress bar with distance done, distance left, ETA and percentage
 - **Nearest town panel** — as you drive, shows the closest town with:
   - Wikipedia landmark thumbnail
   - Population, inhabitant names, rivers, department (+ INSEE code) and region
