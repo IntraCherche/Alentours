@@ -48,6 +48,10 @@ const translations = {
     currentSpeed: 'Speed',
     avgSpeed: 'Avg',
     remaining: 'Remaining',
+    awayDist: '{dist} away',
+    place_city: 'City',
+    place_town: 'Town',
+    place_village: 'Village',
   },
   fr: {
     noRoute: 'Aucun itinéraire',
@@ -92,6 +96,10 @@ const translations = {
     currentSpeed: 'Vitesse',
     avgSpeed: 'Moy.',
     remaining: 'Restant',
+    awayDist: 'à {dist}',
+    place_city: 'Ville',
+    place_town: 'Bourg',
+    place_village: 'Village',
   }
 }
 

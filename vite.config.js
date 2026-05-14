@@ -8,9 +8,9 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {
-        name: 'Motorhome Dashboard',
-        short_name: 'RoadDash',
-        description: 'Ambient road trip dashboard — map, route progress, nearby towns',
+        name: 'Alentours',
+        short_name: 'Alentours',
+        description: 'Ambient road trip companion — map, route progress, nearby towns',
         theme_color: '#0f1923',
         background_color: '#0f1923',
         display: 'standalone',

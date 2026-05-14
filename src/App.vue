@@ -8,13 +8,24 @@
       <div class="topbar__gps">
         <span class="dot" :class="gpsStatusClass"></span>
         <span>{{ position ? position.lat.toFixed(4) + ', ' + position.lng.toFixed(4) : t('waitingGps') }}</span>
-        <span v-if="position?.speed != null" class="topbar__speed">{{ formatSpeed(position.speed) }}</span>
       </div>
-      <button class="icon-btn" @click="toggleTheme" :title="isDark ? t('lightMode') : t('darkMode')">
-        {{ isDark ? '☾' : '☀' }}
-      </button>
-      <button class="icon-btn" :class="{ active: settingsOpen }" @click="settingsOpen = !settingsOpen" :title="t('settings')">⚙</button>
+      <div class="menu-wrap">
+        <button class="icon-btn menu-btn" :class="{ active: menuOpen }" @click="menuOpen = !menuOpen" title="Menu">☰</button>
+        <Transition name="menu">
+          <div v-if="menuOpen" class="menu-dropdown">
+            <button class="menu-item" @click="toggleTheme(); menuOpen = false">
+              <span class="menu-item__icon">{{ isDark ? '☾' : '☀' }}</span>
+              <span>{{ isDark ? t('lightMode') : t('darkMode') }}</span>
+            </button>
+            <button class="menu-item" @click="settingsOpen = true; menuOpen = false">
+              <span class="menu-item__icon">⚙</span>
+              <span>{{ t('settings') }}</span>
+            </button>
+          </div>
+        </Transition>
+      </div>
     </header>
+    <div v-if="menuOpen" class="menu-backdrop" @click="menuOpen = false"></div>
 
     <!-- ── MAIN GRID ────────────────────────────────────────────── -->
     <main class="main">
@@ -62,7 +73,7 @@
             </div>
             <div class="town-side" :class="nearest.side">{{ sideLabel(nearest.side) }}</div>
           </div>
-          <div class="town-dist">{{ formatKm(nearest.distance) }} away · {{ nearest.place }}</div>
+          <div class="town-dist">{{ t('awayDist').replace('{dist}', formatKm(nearest.distance)) }} · {{ t('place_' + nearest.place) }}</div>
 
           <!-- Landmark image -->
           <img
@@ -261,7 +272,8 @@ const { isDark, toggle: toggleTheme } = useTheme()
 // ── Locale ─────────────────────────────────────────────────────────────
 const { lang, t } = useLocale()
 
-// ── Settings drawer ────────────────────────────────────────────────────
+// ── Menu + Settings drawer ─────────────────────────────────────────────
+const menuOpen     = ref(false)
 const settingsOpen = ref(false)
 
 // ── Geolocation ────────────────────────────────────────────────────────
@@ -723,15 +735,6 @@ function sideArrow(s) {
   color: var(--text-muted);
   font-family: 'Courier New', monospace;
 }
-.topbar__speed {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  padding: 0.1rem 0.4rem;
-  border-radius: 4px;
-  color: var(--accent);
-  font-family: var(--font-display);
-  font-weight: 600;
-}
 .dot {
   width: 8px; height: 8px;
   border-radius: 50%;
@@ -972,6 +975,57 @@ function sideArrow(s) {
 }
 .waiting-icon { font-size: 2rem; }
 .waiting-text { font-size: 0.9rem; color: var(--text-muted); line-height: 1.6; }
+
+/* ── Hamburger menu ───────────────────────────────────────────────── */
+.menu-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+.menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 98;
+}
+.menu-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  z-index: 99;
+  min-width: 160px;
+  overflow: hidden;
+  padding: 0.3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  background: none;
+  border: none;
+  border-radius: var(--radius);
+  padding: 0.5rem 0.7rem;
+  font-family: var(--font-display);
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  text-align: left;
+  letter-spacing: 0.04em;
+  transition: background 0.15s, color 0.15s;
+}
+.menu-item:hover { background: var(--bg-card); color: var(--accent); }
+.menu-item__icon { font-size: 1rem; width: 1.2em; text-align: center; }
+.menu-enter-active,
+.menu-leave-active { transition: opacity 0.15s ease, transform 0.15s ease; }
+.menu-enter-from,
+.menu-leave-to     { opacity: 0; transform: translateY(-6px); }
 
 /* ── Settings drawer ──────────────────────────────────────────────── */
 .backdrop {
