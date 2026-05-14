@@ -45,6 +45,9 @@ const translations = {
     language: 'Language',
     vehicleIcon: 'Vehicle Icon',
     textSize: 'Town Info Size',
+    currentSpeed: 'Speed',
+    avgSpeed: 'Avg',
+    remaining: 'Remaining',
   },
   fr: {
     noRoute: 'Aucun itinéraire',
@@ -86,6 +89,9 @@ const translations = {
     language: 'Langue',
     vehicleIcon: 'Icône du véhicule',
     textSize: 'Taille des infos',
+    currentSpeed: 'Vitesse',
+    avgSpeed: 'Moy.',
+    remaining: 'Restant',
   }
 }
 

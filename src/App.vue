@@ -34,6 +34,21 @@
             <span class="progress-pct">{{ progress?.toFixed(0) ?? 0 }}%</span>
             <span>{{ formatKm(distanceLeft) }}</span>
           </div>
+
+          <div class="speed-row">
+            <div class="speed-cell">
+              <span class="speed-label">{{ t('currentSpeed') }}</span>
+              <span class="speed-val">{{ position?.speed != null ? formatSpeed(position.speed) : '—' }}</span>
+            </div>
+            <div class="speed-cell">
+              <span class="speed-label">{{ t('avgSpeed') }}</span>
+              <span class="speed-val">{{ avgSpeedMs ? formatSpeed(avgSpeedMs) : '—' }}</span>
+            </div>
+            <div class="speed-cell">
+              <span class="speed-label">{{ t('remaining') }}</span>
+              <span class="speed-val">{{ remainingDuration ? formatDuration(remainingDuration) : '—' }}</span>
+            </div>
+          </div>
         </div>
 
         <!-- Nearest town -->
@@ -261,6 +276,16 @@ const {
 
 // ── Nearby towns ───────────────────────────────────────────────────────
 const { towns, prefetching, prefetchProgress, prefetchForRoute, fetchNearbyTowns, restoreCache } = useNearbyTowns()
+
+// ── Speed tracking ─────────────────────────────────────────────────────
+const tripStartTime     = ref(null)
+const tripStartDistance = ref(null)
+const avgSpeedMs        = ref(null)
+
+const remainingDuration = computed(() => {
+  if (!avgSpeedMs.value || !distanceLeft.value) return null
+  return distanceLeft.value / avgSpeedMs.value   // seconds
+})
 
 // ── Computed ───────────────────────────────────────────────────────────
 const nearest = computed(() => towns.value?.[0] ?? null)
@@ -543,6 +568,19 @@ watch(position, async (pos) => {
     updatePosition(pos.lat, pos.lng)
     await fetchNearbyTowns(pos.lat, pos.lng, pos.heading)
   }
+
+  // Average speed: initialise on first fix, then update each fix
+  if (!tripStartTime.value) {
+    tripStartTime.value     = Date.now()
+    tripStartDistance.value = distanceDone.value ?? 0
+  } else {
+    const elapsedSec = (Date.now() - tripStartTime.value) / 1000
+    const traveled   = (distanceDone.value ?? 0) - tripStartDistance.value
+    if (elapsedSec >= 10 && traveled > 0) {
+      avgSpeedMs.value = traveled / elapsedSec
+    }
+  }
+
   scheduleSave()
 })
 
@@ -596,9 +634,21 @@ function resetTrip() {
   toQuery.value = ''
   fromPlace.value = null
   toPlace.value = null
+  tripStartTime.value     = null
+  tripStartDistance.value = null
+  avgSpeedMs.value        = null
 }
 
-function toggleGps() { watching.value ? stopGps() : startGps() }
+function toggleGps() {
+  if (watching.value) {
+    stopGps()
+  } else {
+    tripStartTime.value     = null
+    tripStartDistance.value = null
+    avgSpeedMs.value        = null
+    startGps()
+  }
+}
 
 // ── Helpers ────────────────────────────────────────────────────────────
 function formatKm(m) {
@@ -610,6 +660,12 @@ function formatPopulation(n) {
   return n.toLocaleString(lang.value === 'fr' ? 'fr-FR' : 'en-US')
 }
 function formatSpeed(ms) { return Math.round(ms * 3.6) + ' km/h' }
+function formatDuration(sec) {
+  if (sec < 60) return '< 1 min'
+  const h = Math.floor(sec / 3600)
+  const m = Math.floor((sec % 3600) / 60)
+  return h > 0 ? `${h}h ${String(m).padStart(2, '0')}m` : `${m} min`
+}
 function truncate(str, n) { return str?.length > n ? str.slice(0, n) + '…' : str }
 function sideLabel(s) {
   return { left: t('sideLeft'), right: t('sideRight'), ahead: t('sideAhead'), behind: t('sideBehind'), unknown: '' }[s] ?? ''
@@ -764,6 +820,33 @@ function sideLabel(s) {
 .progress-pct {
   font-family: var(--font-display);
   font-size: 1em;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.speed-row {
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid var(--border);
+  padding-top: 0.5em;
+}
+.speed-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15em;
+  flex: 1;
+}
+.speed-label {
+  font-family: var(--font-display);
+  font-size: 0.55em;
+  letter-spacing: 0.12em;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+.speed-val {
+  font-family: var(--font-display);
+  font-size: 0.95em;
   font-weight: 700;
   color: var(--accent);
 }
