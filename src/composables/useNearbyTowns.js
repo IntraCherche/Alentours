@@ -249,7 +249,7 @@ async function fetchWikidataBatch(qids, language) {
 SELECT DISTINCT ?city ?pop ?demonym ?riverLabel ?depLabel ?depCode ?regLabel ?mayorLabel ?mayorSex ?image WHERE {
   VALUES ?city { ${values} }
   OPTIONAL { ?city wdt:P1082 ?pop }
-  OPTIONAL { ?city wdt:P1549 ?demonym . FILTER(LANG(?demonym) = "${lang}") }
+  OPTIONAL { ?city wdt:P1549 ?demonym . FILTER(LANG(?demonym) = "${lang}" || LANG(?demonym) = "fr") }
   OPTIONAL {
     ?city wdt:P206 ?river .
     ?river rdfs:label ?riverLabel . FILTER(LANG(?riverLabel) = "${lang}")
