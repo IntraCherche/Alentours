@@ -13,6 +13,10 @@
                 <span class="menu-item__icon">{{ isDark ? '☾' : '☀' }}</span>
                 <span>{{ isDark ? t('lightMode') : t('darkMode') }}</span>
               </button>
+              <button class="menu-item" @click="ttsEnabled = !ttsEnabled; menuOpen = false">
+                <span class="menu-item__icon">{{ ttsEnabled ? '🔊' : '🔇' }}</span>
+                <span>{{ ttsEnabled ? t('ttsMute') : t('ttsEnable') }}</span>
+              </button>
               <button class="menu-item" @click="settingsOpen = true; menuOpen = false">
                 <span class="menu-item__icon">⚙</span>
                 <span>{{ t('settings') }}</span>
@@ -259,9 +263,12 @@
     <Transition name="fade">
       <div v-if="aboutOpen" class="about-overlay" @click.self="aboutOpen = false">
         <div class="about-card">
-          <div class="about-logo">⬡ Alentours</div>
+          <div class="about-logo">
+            <img class="about-icon" src="/icons/icon-192.png" alt="Alentours" />
+            Alentours
+          </div>
           <div class="about-sub">{{ t('aboutSub') }}</div>
-          <div class="about-author">made by IntraCherche</div>
+          <div class="about-author">{{ t('madeBy') }}</div>
           <button class="icon-btn" @click="aboutOpen = false">✕</button>
         </div>
       </div>
@@ -277,6 +284,7 @@ import { useLocale } from './composables/useLocale.js'
 import { useGeolocation } from './composables/useGeolocation.js'
 import { useRouteProgress } from './composables/useRouteProgress.js'
 import { useNearbyTowns } from './composables/useNearbyTowns.js'
+import { useTTS } from './composables/useTTS.js'
 import { useSession } from './composables/useSession.js'
 import { geocodeSuggestions } from './composables/useGeocoding.js'
 
@@ -307,6 +315,9 @@ const {
 
 // ── Nearby towns ───────────────────────────────────────────────────────
 const { towns, prefetching, prefetchProgress, prefetchForRoute, fetchNearbyTowns, restoreCache } = useNearbyTowns()
+
+// ── TTS ────────────────────────────────────────────────────────────────
+const { ttsEnabled, speak } = useTTS()
 
 // ── Speed tracking ─────────────────────────────────────────────────────
 const tripStartTime     = ref(null)
@@ -349,9 +360,28 @@ const asideInnerRef  = ref(null)
 const asideScrollDist = ref(0)
 const asideScrollDur  = ref(20)
 
-watch(nearest, async () => {
+let lastAnnouncedTownId = null
+
+function announceTown(town) {
+  const dept     = town.wiki?.department
+  const deptCode = town.wiki?.departmentCode
+  const region   = town.wiki?.region
+  const parts    = [town.name]
+  if (dept && deptCode) parts.push(`${t('ttsInDept')} ${dept} (${deptCode})`)
+  else if (dept)        parts.push(`${t('ttsInDept')} ${dept}`)
+  if (region) parts.push(`${t('ttsInRegion')} ${region}`)
+  const sideKey = { left: 'ttsSideLeft', right: 'ttsSideRight', ahead: 'ttsSideAhead', behind: 'ttsSideBehind' }[town.side]
+  if (sideKey) parts.push(t(sideKey))
+  speak(parts.join(', '), lang.value)
+}
+
+watch(nearest, async (town) => {
   await nextTick()
   measureAside()
+  if (town && town.id !== lastAnnouncedTownId) {
+    lastAnnouncedTownId = town.id
+    announceTown(town)
+  }
 })
 watch(townFontScale, async () => {
   await nextTick()
@@ -1279,6 +1309,14 @@ function sideArrow(s) {
   font-weight: 700;
   color: var(--accent);
   letter-spacing: 0.08em;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.about-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
 }
 .about-sub {
   font-size: 0.85rem;

@@ -55,6 +55,15 @@ const translations = {
     place_village: 'Village',
     about: 'About',
     aboutSub: 'Road-trip companion',
+    madeBy: 'made by IntraCherche',
+    ttsEnable: 'Enable Voice',
+    ttsMute: 'Mute Voice',
+    ttsInDept: 'in',
+    ttsInRegion: 'in',
+    ttsSideLeft: 'on your left',
+    ttsSideRight: 'on your right',
+    ttsSideAhead: 'in front of you',
+    ttsSideBehind: 'behind you',
   },
   fr: {
     noRoute: 'Aucun itinéraire',
@@ -106,6 +115,15 @@ const translations = {
     place_village: 'Village',
     about: 'À propos',
     aboutSub: 'Compagnon de voyage',
+    madeBy: 'par IntraCherche',
+    ttsEnable: 'Activer la voix',
+    ttsMute: 'Désactiver la voix',
+    ttsInDept: 'dans le',
+    ttsInRegion: 'en',
+    ttsSideLeft: 'sur votre gauche',
+    ttsSideRight: 'sur votre droite',
+    ttsSideAhead: 'devant vous',
+    ttsSideBehind: 'derrière vous',
   }
 }
 
