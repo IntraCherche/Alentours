@@ -81,9 +81,6 @@
             <img v-if="nearest.wiki?.coat" :src="nearest.wiki.coat" :alt="nearest.name" class="town-coat" />
             <div v-else class="town-side" :class="nearest.side">{{ sideLabel(nearest.side) }}</div>
           </div>
-          <div v-if="nearest.wiki?.nickname" class="town-native">
-            "{{ nearest.wiki.nickname }}"
-          </div>
           <div class="town-dist">{{ t('awayDist').replace('{dist}', formatKm(nearest.distance)) }} · {{ t('place_' + nearest.place) }}</div>
 
           <!-- Landmark image -->
@@ -96,6 +93,10 @@
 
           <!-- Enriched fact rows -->
           <div v-if="nearest.wiki" class="town-facts">
+            <div v-if="nearest.wiki.nickname" class="fact-row">
+              <span class="fact-key">{{ t('nickname') }}</span>
+              <span class="fact-val">"{{ nearest.wiki.nickname }}"</span>
+            </div>
             <div v-if="nearest.wiki.population" class="fact-row">
               <span class="fact-key">{{ t('population') }}</span>
               <span class="fact-val">{{ formatPopulation(nearest.wiki.population) }}</span>

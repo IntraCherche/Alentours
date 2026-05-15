@@ -246,11 +246,11 @@ async function fetchWikidataBatch(qids, language) {
   const values = qids.map(q => `wd:${q}`).join(' ')
 
   const sparql = `
-SELECT DISTINCT ?city ?pop ?elevation ?nickname ?demonym ?riverLabel ?depLabel ?depCode ?regLabel ?mayorLabel ?mayorSex ?image ?coat WHERE {
+SELECT DISTINCT ?city ?pop ?elevation ?alias ?demonym ?riverLabel ?depLabel ?depCode ?regLabel ?mayorLabel ?mayorSex ?image ?coat WHERE {
   VALUES ?city { ${values} }
   OPTIONAL { ?city wdt:P1082 ?pop }
   OPTIONAL { ?city wdt:P2044 ?elevation }
-  OPTIONAL { ?city wdt:P1449 ?nickname . FILTER(LANG(?nickname) = "${lang}" || LANG(?nickname) = "fr") }
+  OPTIONAL { ?city skos:altLabel ?alias . FILTER(LANG(?alias) = "fr") }
   OPTIONAL { ?city wdt:P1549 ?demonym . FILTER(LANG(?demonym) = "${lang}" || LANG(?demonym) = "fr") }
   OPTIONAL {
     ?city wdt:P206 ?river .
@@ -289,14 +289,14 @@ SELECT DISTINCT ?city ?pop ?elevation ?nickname ?demonym ?riverLabel ?depLabel ?
     const qid = row.city?.value?.split('/').pop()
     if (!qid) continue
     if (!results[qid]) results[qid] = {
-      population: null, elevation: null, demonyms: [], rivers: [],
+      population: null, elevation: null, demonyms: [], aliases: [], rivers: [],
       department: null, departmentCode: null, region: null,
-      mayor: null, mayorGender: null, image: null, coat: null, nickname: null
+      mayor: null, mayorGender: null, image: null, coat: null
     }
     const r = results[qid]
     if (row.pop) r.population = Math.round(parseFloat(row.pop.value))
     if (row.elevation && !r.elevation) r.elevation = Math.round(parseFloat(row.elevation.value))
-    if (row.nickname && !r.nickname) r.nickname = row.nickname.value
+    if (row.alias) { const a = row.alias.value; if (!r.aliases.includes(a)) r.aliases.push(a) }
     if (row.demonym) { const d = row.demonym.value; if (!r.demonyms.includes(d)) r.demonyms.push(d) }
     if (row.riverLabel) { const rv = row.riverLabel.value; if (!r.rivers.includes(rv)) r.rivers.push(rv) }
     if (row.depLabel && !r.department) r.department = row.depLabel.value
@@ -307,7 +307,18 @@ SELECT DISTINCT ?city ?pop ?elevation ?nickname ?demonym ?riverLabel ?depLabel ?
     if (row.image && !r.image) r.image = row.image.value
     if (row.coat && !r.coat) r.coat = row.coat.value
   }
+  for (const r of Object.values(results)) {
+    r.nickname = pickNickname(r.aliases)
+    delete r.aliases
+  }
   return results
+}
+
+function pickNickname(aliases) {
+  const articleRe = /^(la |le |les |l')/i
+  return aliases.find(a => articleRe.test(a) && a.includes(' '))
+    ?? aliases.find(a => a.includes(' '))
+    ?? null
 }
 
 function computeSide(fromLat, fromLng, heading, toLat, toLng) {
