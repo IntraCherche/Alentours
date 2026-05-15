@@ -375,14 +375,20 @@ function announceTown(town) {
   const dept     = town.wiki?.department
   const deptCode = town.wiki?.departmentCode
   const region   = town.wiki?.region
-  const parts    = [town.name]
-  if (town.wiki?.nickname) parts.push(`${t('ttsAlsoKnownAs')} ${town.wiki.nickname}`)
+  const nickname = town.wiki?.nickname
+
+  const parts = [town.name]
   if (dept && deptCode) parts.push(`${t('ttsInDept')} ${dept} (${deptCode})`)
   else if (dept)        parts.push(`${t('ttsInDept')} ${dept}`)
-  if (region) parts.push(`${t('ttsInRegion')} ${region}`)
+  if (region) parts.push(`${t('ttsInRegion')} ${region}${t('ttsRegionSuffix')}`)
+
   const sideKey = { left: 'ttsSideLeft', right: 'ttsSideRight', ahead: 'ttsSideAhead', behind: 'ttsSideBehind' }[town.side]
-  if (sideKey) parts.push(t(sideKey))
-  speak(parts.join(', '), lang.value)
+  let sentence = parts.join(', ')
+  if (sideKey) sentence += `, ${t('ttsIsLocated')} ${t(sideKey)}`
+  sentence += '.'
+  if (nickname) sentence += ` ${t('ttsAlsoKnownAs')} ${nickname}.`
+
+  speak(sentence, lang.value)
 }
 
 watch(nearest, async (town) => {

@@ -15,12 +15,14 @@ Designed to be glanced at from the passenger seat or mounted on a motorhome scre
 - **GPS tracking** — follows your position in real time, draws your actual path over the planned route, shows current speed
 - **Route progress** — progress bar with distance done, distance left, ETA and percentage
 - **Nearest town panel** — as you drive, shows the closest town with:
+  - Coat of arms (blason) fetched from Wikidata, shown next to the town name
   - Wikipedia landmark thumbnail
-  - Population, inhabitant names, rivers, department (+ INSEE code) and region
+  - Nickname (e.g. "La Ville Rose"), population, altitude, inhabitant names, rivers, department (+ INSEE code) and region
   - Current mayor with gender indicator (♂ / ♀)
   - Auto-scrolling Wikipedia extract for long descriptions
 - **Offline-first pre-fetch** — at trip start, all towns along the route are fetched from Overpass, Wikipedia, and Wikidata and cached locally; no further network calls are needed while driving
 - **Scalable UI** — font-size slider (×0.8 → ×2.0) in settings for easy reading at distance; progress and town panels scale together
+- **Voice announcements (TTS)** — when a new town is detected, a natural-language sentence is spoken: town name, department, region, direction, and nickname if available
 - **Dark / light theme** and EN / FR language, both persisted
 - **Session persistence** — closing and reopening the app resumes the trip exactly where you left off (route, GPS path, position)
 - **PWA** — installable, OSM tiles and Wikipedia responses cached for offline use
