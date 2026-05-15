@@ -256,13 +256,14 @@ SELECT DISTINCT ?city ?pop ?elevation ?demonym ?riverLabel ?depLabel ?depCode ?r
     ?river rdfs:label ?riverLabel . FILTER(LANG(?riverLabel) = "${lang}")
   }
   OPTIONAL {
-    ?city wdt:P131 ?dep .
+    ?city wdt:P131+ ?dep .
+    ?dep wdt:P2586 ?depCode .
     ?dep rdfs:label ?depLabel . FILTER(LANG(?depLabel) = "${lang}")
-    OPTIONAL { ?dep wdt:P2586 ?depCode }
-    OPTIONAL {
-      ?dep wdt:P131 ?reg .
-      ?reg rdfs:label ?regLabel . FILTER(LANG(?regLabel) = "${lang}")
-    }
+  }
+  OPTIONAL {
+    ?city wdt:P131+ ?reg .
+    { ?reg wdt:P31 wd:Q36784 } UNION { ?reg wdt:P31 wd:Q202216 } UNION { ?reg wdt:P31 wd:Q22690 }
+    ?reg rdfs:label ?regLabel . FILTER(LANG(?regLabel) = "${lang}")
   }
   OPTIONAL {
     ?city wdt:P6 ?mayor .
