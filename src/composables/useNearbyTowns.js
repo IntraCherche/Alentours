@@ -246,9 +246,10 @@ async function fetchWikidataBatch(qids, language) {
   const values = qids.map(q => `wd:${q}`).join(' ')
 
   const sparql = `
-SELECT DISTINCT ?city ?pop ?demonym ?riverLabel ?depLabel ?depCode ?regLabel ?mayorLabel ?mayorSex ?image WHERE {
+SELECT DISTINCT ?city ?pop ?elevation ?demonym ?riverLabel ?depLabel ?depCode ?regLabel ?mayorLabel ?mayorSex ?image WHERE {
   VALUES ?city { ${values} }
   OPTIONAL { ?city wdt:P1082 ?pop }
+  OPTIONAL { ?city wdt:P2044 ?elevation }
   OPTIONAL { ?city wdt:P1549 ?demonym . FILTER(LANG(?demonym) = "${lang}" || LANG(?demonym) = "fr") }
   OPTIONAL {
     ?city wdt:P206 ?river .
@@ -285,12 +286,13 @@ SELECT DISTINCT ?city ?pop ?demonym ?riverLabel ?depLabel ?depCode ?regLabel ?ma
     const qid = row.city?.value?.split('/').pop()
     if (!qid) continue
     if (!results[qid]) results[qid] = {
-      population: null, demonyms: [], rivers: [],
+      population: null, elevation: null, demonyms: [], rivers: [],
       department: null, departmentCode: null, region: null,
       mayor: null, mayorGender: null, image: null
     }
     const r = results[qid]
     if (row.pop) r.population = Math.round(parseFloat(row.pop.value))
+    if (row.elevation && !r.elevation) r.elevation = Math.round(parseFloat(row.elevation.value))
     if (row.demonym) { const d = row.demonym.value; if (!r.demonyms.includes(d)) r.demonyms.push(d) }
     if (row.riverLabel) { const rv = row.riverLabel.value; if (!r.rivers.includes(rv)) r.rivers.push(rv) }
     if (row.depLabel && !r.department) r.department = row.depLabel.value

@@ -92,6 +92,10 @@
               <span class="fact-key">{{ t('population') }}</span>
               <span class="fact-val">{{ formatPopulation(nearest.wiki.population) }}</span>
             </div>
+            <div v-if="nearest.wiki.elevation != null" class="fact-row">
+              <span class="fact-key">{{ t('elevation') }}</span>
+              <span class="fact-val">{{ nearest.wiki.elevation }} m</span>
+            </div>
             <div v-if="nearest.wiki.demonyms?.length" class="fact-row">
               <span class="fact-key">{{ t('inhabitants') }}</span>
               <span class="fact-val">{{ nearest.wiki.demonyms.join(' / ') }}</span>
