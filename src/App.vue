@@ -268,6 +268,7 @@
             Alentours
           </div>
           <div class="about-sub">{{ t('aboutSub') }}</div>
+          <div class="about-version">v{{ appVersion }}</div>
           <div class="about-author">{{ t('madeBy') }}</div>
           <button class="icon-btn" @click="aboutOpen = false">✕</button>
         </div>
@@ -287,6 +288,9 @@ import { useNearbyTowns } from './composables/useNearbyTowns.js'
 import { useTTS } from './composables/useTTS.js'
 import { useSession } from './composables/useSession.js'
 import { geocodeSuggestions } from './composables/useGeocoding.js'
+
+// ── App version (injected by Vite from package.json) ──────────────────
+const appVersion = __APP_VERSION__
 
 // ── Theme ──────────────────────────────────────────────────────────────
 const { isDark, toggle: toggleTheme } = useTheme()
@@ -1322,6 +1326,12 @@ function sideArrow(s) {
   font-size: 0.85rem;
   color: var(--text-muted);
   letter-spacing: 0.04em;
+}
+.about-version {
+  font-size: 0.8rem;
+  color: var(--accent);
+  letter-spacing: 0.06em;
+  font-weight: 600;
 }
 .about-author {
   font-size: 0.75rem;
