@@ -135,8 +135,13 @@
         <div v-if="!position" class="panel panel--waiting">
           <div class="waiting-icon">⌛</div>
           <div class="waiting-text">
-            {{ routeLoaded ? t('startGpsHint') : t('planTripHint') }}
-            <br><small>{{ routeLoaded ? '' : t('planTripSub') }}</small>
+            <template v-if="routeLoaded">{{ t('startGpsHint') }}</template>
+            <template v-else>
+              {{ t('planTripHintPre') }}
+              <button class="inline-gear-btn" @click="settingsOpen = true">⚙</button>
+              {{ t('planTripHintPost') }}
+              <br><small>{{ t('planTripSub') }}</small>
+            </template>
           </div>
         </div>
 
@@ -1045,6 +1050,15 @@ function sideArrow(s) {
   min-height: 120px;
 }
 .waiting-icon { font-size: 2rem; }
+.inline-gear-btn {
+  background: none;
+  border: none;
+  padding: 0 0.1em;
+  font-size: 1.1em;
+  color: var(--accent);
+  cursor: pointer;
+  vertical-align: middle;
+}
 .waiting-text { font-size: 0.9rem; color: var(--text-muted); line-height: 1.6; }
 
 /* ── Hamburger menu ───────────────────────────────────────────────── */
