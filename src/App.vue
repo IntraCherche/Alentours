@@ -78,7 +78,11 @@
               <div class="town-name">{{ nearest.name }}</div>
               <span v-if="nearest.side !== 'unknown'" class="town-arrow" :class="nearest.side">{{ sideArrow(nearest.side) }}</span>
             </div>
-            <div class="town-side" :class="nearest.side">{{ sideLabel(nearest.side) }}</div>
+            <img v-if="nearest.wiki?.coat" :src="nearest.wiki.coat" :alt="nearest.name" class="town-coat" />
+            <div v-else class="town-side" :class="nearest.side">{{ sideLabel(nearest.side) }}</div>
+          </div>
+          <div v-if="nearest.wiki?.nickname" class="town-native">
+            "{{ nearest.wiki.nickname }}"
           </div>
           <div class="town-dist">{{ t('awayDist').replace('{dist}', formatKm(nearest.distance)) }} · {{ t('place_' + nearest.place) }}</div>
 
@@ -371,6 +375,7 @@ function announceTown(town) {
   const deptCode = town.wiki?.departmentCode
   const region   = town.wiki?.region
   const parts    = [town.name]
+  if (town.wiki?.nickname) parts.push(`${t('ttsAlsoKnownAs')} ${town.wiki.nickname}`)
   if (dept && deptCode) parts.push(`${t('ttsInDept')} ${dept} (${deptCode})`)
   else if (dept)        parts.push(`${t('ttsInDept')} ${dept}`)
   if (region) parts.push(`${t('ttsInRegion')} ${region}`)
@@ -933,6 +938,14 @@ function sideArrow(s) {
   line-height: 1.1;
   letter-spacing: 0.03em;
 }
+.town-native {
+  font-style: italic;
+  font-size: 0.82em;
+  color: var(--text-muted);
+  text-align: center;
+  margin-top: -0.1em;
+  letter-spacing: 0.04em;
+}
 .town-side {
   font-family: var(--font-display);
   font-size: 0.7em;
@@ -946,6 +959,12 @@ function sideArrow(s) {
 .town-side.left  { color: var(--blue);   border: 1px solid var(--blue); }
 .town-side.right { color: var(--accent); border: 1px solid var(--accent); }
 .town-side.ahead { color: var(--green);  border: 1px solid var(--green); }
+.town-coat {
+  height: 48px;
+  width: auto;
+  object-fit: contain;
+  flex-shrink: 0;
+}
 .town-dist { font-size: 0.8em; color: var(--text-primary); font-weight: 500; }
 
 .town-thumbnail {
