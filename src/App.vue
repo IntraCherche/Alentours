@@ -983,19 +983,18 @@ function sideArrow(s) {
 }
 
 .town-facts {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25em;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 0.75em;
+  row-gap: 0.3em;
   background: var(--bg-panel);
   border-radius: var(--radius);
   padding: 0.5em 0.65em;
-}
-.fact-row {
-  display: flex;
-  align-items: baseline;
-  gap: 0.5em;
   font-size: 0.82em;
   line-height: 1.4;
+}
+.fact-row {
+  display: contents;
 }
 .fact-key {
   font-family: var(--font-display);
@@ -1004,10 +1003,10 @@ function sideArrow(s) {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-muted);
-  min-width: 5em;
-  flex-shrink: 0;
+  white-space: nowrap;
+  align-self: baseline;
 }
-.fact-val { color: var(--text-primary); flex: 1; font-weight: 500; }
+.fact-val { color: var(--text-primary); font-weight: 500; align-self: baseline; }
 .fact-sub { color: var(--text-muted); font-weight: 400; }
 
 .gender-sign { margin-right: 0.2em; }
