@@ -1,6 +1,6 @@
 import { ref, watch } from 'vue'
 
-const lang = ref(localStorage.getItem('lang') || 'en')
+const lang = ref(localStorage.getItem('lang') || 'fr')
 
 watch(lang, (v) => localStorage.setItem('lang', v))
 
