@@ -9,6 +9,10 @@
           <button class="icon-btn menu-btn" :class="{ active: menuOpen }" @click="menuOpen = !menuOpen" title="Menu">☰</button>
           <Transition name="menu">
             <div v-if="menuOpen" class="menu-dropdown">
+              <button class="menu-item" @click="settingsOpen = true; menuOpen = false">
+                <span class="menu-item__icon">⚙</span>
+                <span>{{ t('settings') }}</span>
+              </button>
               <button class="menu-item" @click="toggleTheme(); menuOpen = false">
                 <span class="menu-item__icon">{{ isDark ? '☾' : '☀' }}</span>
                 <span>{{ isDark ? t('lightMode') : t('darkMode') }}</span>
@@ -16,10 +20,6 @@
               <button class="menu-item" @click="ttsEnabled = !ttsEnabled; menuOpen = false">
                 <span class="menu-item__icon">{{ ttsEnabled ? '🔊' : '🔇' }}</span>
                 <span>{{ ttsEnabled ? t('ttsMute') : t('ttsEnable') }}</span>
-              </button>
-              <button class="menu-item" @click="settingsOpen = true; menuOpen = false">
-                <span class="menu-item__icon">⚙</span>
-                <span>{{ t('settings') }}</span>
               </button>
               <button class="menu-item" @click="aboutOpen = true; menuOpen = false">
                 <span class="menu-item__icon">ⓘ</span>
