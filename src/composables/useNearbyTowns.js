@@ -345,12 +345,16 @@ export function useNearbyTowns() {
     lastQueryTime = 0
   }
 
+  const CITY_RADIUS_M = 80000
+
   // ── 3. CITY-ONLY LOOKUP (wide radius, explicit trigger) ──────────────
   // Used when the place-type filter is set to "city". Cities are rare and
   // visible from tens of kilometres, so we search 80 km and bypass the
   // normal throttle (this is triggered explicitly on filter change / GPS fix).
   async function fetchNearestCity(lat, lng, heading) {
-    // Cache path: find the nearest city anywhere in the prefetch cache.
+    // Cache path: find the nearest city within 80 km in the prefetch cache.
+    // The cache may contain cities from a previous route far away — always
+    // apply the radius cap so stale distant cities don't leak through.
     if (Object.keys(townCache).length) {
       const cities = Object.values(townCache)
         .filter(t => t.place === 'city')
@@ -359,6 +363,7 @@ export function useNearbyTowns() {
           distance: haversine(lat, lng, t.lat, t.lng),
           side: computeSide(lat, lng, heading, t.lat, t.lng)
         }))
+        .filter(t => t.distance <= CITY_RADIUS_M)
         .sort((a, b) => a.distance - b.distance)
 
       if (cities.length) {
