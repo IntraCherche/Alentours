@@ -538,16 +538,16 @@ let pendingDisplayTimer = null
 function tryUpdateDisplayedNearest() {
   const minMs = nearbyMinDuration.value * 1000
   const elapsed = Date.now() - lastDisplayChange
-  if (minMs === 0 || elapsed >= minMs) {
+  if (minMs === 0 || elapsed >= minMs || !nearest.value) {
     clearTimeout(pendingDisplayTimer)
     pendingDisplayTimer = null
     displayedNearest.value = nearest.value
-    lastDisplayChange = Date.now()
+    if (nearest.value) lastDisplayChange = Date.now()
   } else if (!pendingDisplayTimer) {
     pendingDisplayTimer = setTimeout(() => {
       pendingDisplayTimer = null
       displayedNearest.value = nearest.value
-      lastDisplayChange = Date.now()
+      if (nearest.value) lastDisplayChange = Date.now()
     }, minMs - elapsed)
   }
 }

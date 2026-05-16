@@ -1,6 +1,6 @@
 {
   "name": "alentours",
-  "version": "1.4.4",
+  "version": "1.4.5",
   "description": "Travel companion showing nearby towns with Wikipedia info while on the move",
   "type": "module",
   "scripts": {

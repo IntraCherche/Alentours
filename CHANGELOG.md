@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.4.5] — 2026-05-16
+
+### Fixed
+- **Panel-town never appeared on Android (and any fresh session)** — `tryUpdateDisplayedNearest` was stamping `lastDisplayChange = Date.now()` even when setting `displayedNearest` to `null` (initial state). When the first real town arrived seconds later, the elapsed time was far shorter than the 120 s `nearbyMinDuration` default, so the panel was throttled and stayed blank for up to 2 minutes. Fix: `lastDisplayChange` is now only advanced when a real town is being shown (`if (nearest.value)`), and the throttle is bypassed entirely when clearing to null.
+- **TTS silent on Android (and desktop)** — `speechSynthesis.cancel()` is asynchronous on mobile browsers, not just iOS; calling `speak()` immediately after dropped the utterance on Android Chrome. The 50 ms gap after `cancel()` is now applied on all platforms, removing the iOS-only guard.
+
+---
+
 ## [1.4.4] — 2026-05-16
 
 ### Fixed

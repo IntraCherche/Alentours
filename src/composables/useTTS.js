@@ -4,21 +4,15 @@ const ttsEnabled = ref(localStorage.getItem('tts-enabled') !== 'false')
 
 watch(ttsEnabled, (v) => localStorage.setItem('tts-enabled', String(v)))
 
-// iOS cancel() is asynchronous; speaking immediately after drops the utterance
-const isIOSDevice = /iP(hone|ad|od)/i.test(navigator.userAgent)
-
 export function useTTS() {
   function speak(text, lang = 'en') {
     if (!ttsEnabled.value || !window.speechSynthesis) return
     const ss = window.speechSynthesis
     const utt = new SpeechSynthesisUtterance(text)
     utt.lang = lang === 'fr' ? 'fr-FR' : 'en-US'
+    // cancel() is asynchronous on mobile browsers — a brief gap is required before speak()
     ss.cancel()
-    if (isIOSDevice) {
-      setTimeout(() => ss.speak(utt), 50)
-    } else {
-      ss.speak(utt)
-    }
+    setTimeout(() => ss.speak(utt), 50)
   }
 
   return { ttsEnabled, speak }
