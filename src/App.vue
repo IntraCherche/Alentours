@@ -52,6 +52,10 @@
             <span class="speed-label">{{ t('remaining') }}</span>
             <span class="speed-val">{{ remainingDuration ? formatDuration(remainingDuration) : '—' }}</span>
           </div>
+          <div class="speed-cell">
+            <span class="speed-label">{{ t('drivenDistance') }}</span>
+            <span class="speed-val">{{ drivenDistance > 0 ? formatKm(drivenDistance) : '—' }}</span>
+          </div>
         </div>
       </template>
     </header>
@@ -372,6 +376,21 @@ const avgSpeedMs        = ref(null)
 const remainingDuration = computed(() => {
   if (!avgSpeedMs.value || !distanceLeft.value) return null
   return distanceLeft.value / avgSpeedMs.value   // seconds
+})
+
+const drivenDistance = computed(() => {
+  const path = actualPath.value
+  let total = 0
+  for (let i = 1; i < path.length; i++) {
+    const [lat1, lng1] = path[i - 1]
+    const [lat2, lng2] = path[i]
+    const R = 6371000
+    const φ1 = lat1 * Math.PI / 180, φ2 = lat2 * Math.PI / 180
+    const Δφ = (lat2 - lat1) * Math.PI / 180, Δλ = (lng2 - lng1) * Math.PI / 180
+    const a = Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2
+    total += R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  }
+  return total
 })
 
 // ── Place-type filter ──────────────────────────────────────────────────
