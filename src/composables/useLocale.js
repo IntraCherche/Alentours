@@ -69,6 +69,16 @@ const translations = {
     ttsSideAhead: 'in front of you',
     ttsSideBehind: 'behind you',
     ttsAlsoKnownAs: 'It is nicknamed',
+    nearbyMinTime: 'Min. time per city',
+    displayRefreshOff: 'Immediate',
+    displayRefreshQuick: 'Quick · 30 s',
+    displayRefreshNormal: 'Normal · 1 min',
+    displayRefreshRelaxed: 'Relaxed · 2 min',
+    displayRefreshSlow: 'Slow · 5 min',
+    minPlaceSize: 'Show nearby',
+    placeFilterAll: 'All (village, town, city)',
+    placeFilterTown: 'Town & city',
+    placeFilterCity: 'City only',
   },
   fr: {
     noRoute: 'Aucun itinéraire',
@@ -134,6 +144,16 @@ const translations = {
     ttsSideAhead: 'devant vous',
     ttsSideBehind: 'derrière vous',
     ttsAlsoKnownAs: 'Elle est surnommée',
+    nearbyMinTime: 'Durée min. par ville',
+    displayRefreshOff: 'Immédiat',
+    displayRefreshQuick: 'Rapide · 30 s',
+    displayRefreshNormal: 'Normal · 1 min',
+    displayRefreshRelaxed: 'Détendu · 2 min',
+    displayRefreshSlow: 'Lent · 5 min',
+    minPlaceSize: 'Afficher à proximité',
+    placeFilterAll: 'Tout (village, bourg, ville)',
+    placeFilterTown: 'Bourg et ville',
+    placeFilterCity: 'Ville seulement',
   }
 }
 

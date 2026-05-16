@@ -70,64 +70,64 @@
       >
 
         <!-- Nearest town -->
-        <div class="panel panel--town" v-if="nearest">
+        <div class="panel panel--town" v-if="displayedNearest">
           <div class="panel__label">{{ t('nearestTown') }}</div>
           <div class="town-header">
             <div class="town-name-row">
-              <span v-if="nearest.side !== 'unknown'" class="town-arrow" :class="nearest.side">{{ sideArrow(nearest.side) }}</span>
-              <div class="town-name">{{ nearest.name }}</div>
-              <span v-if="nearest.side !== 'unknown'" class="town-arrow" :class="nearest.side">{{ sideArrow(nearest.side) }}</span>
+              <span v-if="displayedNearest.side !== 'unknown'" class="town-arrow" :class="displayedNearest.side">{{ sideArrow(displayedNearest.side) }}</span>
+              <div class="town-name">{{ displayedNearest.name }}</div>
+              <span v-if="displayedNearest.side !== 'unknown'" class="town-arrow" :class="displayedNearest.side">{{ sideArrow(displayedNearest.side) }}</span>
             </div>
-            <img v-if="nearest.wiki?.coat" :src="nearest.wiki.coat" :alt="nearest.name" class="town-coat" />
-            <div v-else class="town-side" :class="nearest.side">{{ sideLabel(nearest.side) }}</div>
+            <img v-if="displayedNearest.wiki?.coat" :src="displayedNearest.wiki.coat" :alt="displayedNearest.name" class="town-coat" />
+            <div v-else class="town-side" :class="displayedNearest.side">{{ sideLabel(displayedNearest.side) }}</div>
           </div>
-          <div class="town-dist">{{ t('awayDist').replace('{dist}', formatKm(nearest.distance)) }} · {{ t('place_' + nearest.place) }}</div>
+          <div class="town-dist">{{ t('awayDist').replace('{dist}', formatKm(displayedNearest.distance)) }} · {{ t('place_' + displayedNearest.place) }}</div>
 
           <!-- Landmark image -->
           <img
-            v-if="nearest.wiki?.thumbnail"
-            :src="nearest.wiki.thumbnail"
-            :alt="nearest.name"
+            v-if="displayedNearest.wiki?.thumbnail"
+            :src="displayedNearest.wiki.thumbnail"
+            :alt="displayedNearest.name"
             class="town-thumbnail"
           />
 
           <!-- Enriched fact rows -->
-          <div v-if="nearest.wiki" class="town-facts">
-            <div v-if="nearest.wiki.nickname" class="fact-row">
+          <div v-if="displayedNearest.wiki" class="town-facts">
+            <div v-if="displayedNearest.wiki.nickname" class="fact-row">
               <span class="fact-key">{{ t('nickname') }}</span>
-              <span class="fact-val">"{{ nearest.wiki.nickname }}"</span>
+              <span class="fact-val">"{{ displayedNearest.wiki.nickname }}"</span>
             </div>
-            <div v-if="nearest.wiki.population" class="fact-row">
+            <div v-if="displayedNearest.wiki.population" class="fact-row">
               <span class="fact-key">{{ t('population') }}</span>
-              <span class="fact-val">{{ formatPopulation(nearest.wiki.population) }}</span>
+              <span class="fact-val">{{ formatPopulation(displayedNearest.wiki.population) }}</span>
             </div>
-            <div v-if="nearest.wiki.elevation != null" class="fact-row">
+            <div v-if="displayedNearest.wiki.elevation != null" class="fact-row">
               <span class="fact-key">{{ t('elevation') }}</span>
-              <span class="fact-val">{{ nearest.wiki.elevation }} m</span>
+              <span class="fact-val">{{ displayedNearest.wiki.elevation }} m</span>
             </div>
-            <div v-if="nearest.wiki.demonyms?.length" class="fact-row">
+            <div v-if="displayedNearest.wiki.demonyms?.length" class="fact-row">
               <span class="fact-key">{{ t('inhabitants') }}</span>
-              <span class="fact-val">{{ nearest.wiki.demonyms.join(' / ') }}</span>
+              <span class="fact-val">{{ displayedNearest.wiki.demonyms.join(' / ') }}</span>
             </div>
-            <div v-if="nearest.wiki.rivers?.length" class="fact-row">
+            <div v-if="displayedNearest.wiki.rivers?.length" class="fact-row">
               <span class="fact-key">{{ t('rivers') }}</span>
-              <span class="fact-val">{{ nearest.wiki.rivers.join(', ') }}</span>
+              <span class="fact-val">{{ displayedNearest.wiki.rivers.join(', ') }}</span>
             </div>
-            <div v-if="nearest.wiki.department" class="fact-row">
+            <div v-if="displayedNearest.wiki.department" class="fact-row">
               <span class="fact-key">{{ t('department') }}</span>
               <span class="fact-val">
-                {{ nearest.wiki.department }}<span v-if="nearest.wiki.departmentCode" class="fact-sub"> ({{ nearest.wiki.departmentCode }})</span><span v-if="nearest.wiki.region" class="fact-sub"> · {{ nearest.wiki.region }}</span>
+                {{ displayedNearest.wiki.department }}<span v-if="displayedNearest.wiki.departmentCode" class="fact-sub"> ({{ displayedNearest.wiki.departmentCode }})</span><span v-if="displayedNearest.wiki.region" class="fact-sub"> · {{ displayedNearest.wiki.region }}</span>
               </span>
             </div>
-            <div v-if="nearest.wiki.mayor" class="fact-row">
+            <div v-if="displayedNearest.wiki.mayor" class="fact-row">
               <span class="fact-key">{{ t('mayor') }}</span>
               <span class="fact-val">
-                <span class="gender-sign" :class="nearest.wiki.mayorGender">{{ nearest.wiki.mayorGender === 'female' ? '♀' : nearest.wiki.mayorGender === 'male' ? '♂' : '' }}</span>{{ nearest.wiki.mayor }}
+                <span class="gender-sign" :class="displayedNearest.wiki.mayorGender">{{ displayedNearest.wiki.mayorGender === 'female' ? '♀' : displayedNearest.wiki.mayorGender === 'male' ? '♂' : '' }}</span>{{ displayedNearest.wiki.mayor }}
               </span>
             </div>
           </div>
 
-          <div v-if="nearest.wiki" class="town-extract">{{ nearest.wiki.extract }}</div>
+          <div v-if="displayedNearest.wiki" class="town-extract">{{ displayedNearest.wiki.extract }}</div>
           <div v-else class="town-extract town-extract--dim">{{ t('noDescription') }}</div>
         </div>
 
@@ -237,6 +237,28 @@
           </select>
         </section>
 
+        <!-- Nearby city min. display time -->
+        <section class="drawer-section">
+          <div class="section-label">{{ t('nearbyMinTime') }}</div>
+          <select class="text-input lang-select" v-model.number="nearbyMinDuration">
+            <option :value="0">{{ t('displayRefreshOff') }}</option>
+            <option :value="30">{{ t('displayRefreshQuick') }}</option>
+            <option :value="60">{{ t('displayRefreshNormal') }}</option>
+            <option :value="120">{{ t('displayRefreshRelaxed') }}</option>
+            <option :value="300">{{ t('displayRefreshSlow') }}</option>
+          </select>
+        </section>
+
+        <!-- Nearby place-type filter -->
+        <section class="drawer-section">
+          <div class="section-label">{{ t('minPlaceSize') }}</div>
+          <select class="text-input lang-select" v-model="minPlaceType">
+            <option value="all">{{ t('placeFilterAll') }}</option>
+            <option value="town">{{ t('placeFilterTown') }}</option>
+            <option value="city">{{ t('placeFilterCity') }}</option>
+          </select>
+        </section>
+
         <!-- Town info text size -->
         <section class="drawer-section">
           <div class="section-label">{{ t('textSize') }}</div>
@@ -248,7 +270,7 @@
             </div>
             <span class="size-a size-a--lg">A</span>
           </div>
-          <div class="size-preview">{{ nearest?.name ?? 'Lyon' }}</div>
+          <div class="size-preview">{{ displayedNearest?.name ?? 'Lyon' }}</div>
         </section>
 
         <!-- Vehicle icon -->
@@ -343,8 +365,20 @@ const remainingDuration = computed(() => {
   return distanceLeft.value / avgSpeedMs.value   // seconds
 })
 
+// ── Place-type filter ──────────────────────────────────────────────────
+const PLACE_RANK = { village: 1, town: 2, city: 3 }
+
+const minPlaceType = ref(localStorage.getItem('minPlaceType') || 'all')
+watch(minPlaceType, v => localStorage.setItem('minPlaceType', v))
+
+const filteredTowns = computed(() => {
+  if (minPlaceType.value === 'all') return towns.value ?? []
+  const minRank = PLACE_RANK[minPlaceType.value] ?? 0
+  return (towns.value ?? []).filter(t => (PLACE_RANK[t.place] ?? 0) >= minRank)
+})
+
 // ── Computed ───────────────────────────────────────────────────────────
-const nearest = computed(() => towns.value?.[0] ?? null)
+const nearest = computed(() => filteredTowns.value[0] ?? null)
 
 const progressFillStyle = computed(() => {
   const pct = progress.value ?? 0
@@ -367,6 +401,34 @@ const gpsStatusClass = computed(() => {
 // ── Town font scale ────────────────────────────────────────────────────
 const townFontScale = ref(parseFloat(localStorage.getItem('townFontScale') || '1.2'))
 watch(townFontScale, (v) => localStorage.setItem('townFontScale', String(v)))
+
+// ── Nearby city display lock ───────────────────────────────────────────
+const nearbyMinDuration = ref(parseInt(localStorage.getItem('nearbyMinDuration') || '120', 10))
+watch(nearbyMinDuration, v => {
+  localStorage.setItem('nearbyMinDuration', String(v))
+  tryUpdateDisplayedNearest()
+})
+
+const displayedNearest = ref(null)
+let lastDisplayChange = 0
+let pendingDisplayTimer = null
+
+function tryUpdateDisplayedNearest() {
+  const minMs = nearbyMinDuration.value * 1000
+  const elapsed = Date.now() - lastDisplayChange
+  if (minMs === 0 || elapsed >= minMs) {
+    clearTimeout(pendingDisplayTimer)
+    pendingDisplayTimer = null
+    displayedNearest.value = nearest.value
+    lastDisplayChange = Date.now()
+  } else if (!pendingDisplayTimer) {
+    pendingDisplayTimer = setTimeout(() => {
+      pendingDisplayTimer = null
+      displayedNearest.value = nearest.value
+      lastDisplayChange = Date.now()
+    }, minMs - elapsed)
+  }
+}
 
 // ── Aside auto-scroll ─────────────────────────────────────────────────
 const asideRef       = ref(null)
@@ -396,7 +458,9 @@ function announceTown(town) {
   speak(sentence, lang.value)
 }
 
-watch(nearest, async (town) => {
+watch(nearest, tryUpdateDisplayedNearest, { immediate: true })
+
+watch(displayedNearest, async (town) => {
   await nextTick()
   measureAside()
   if (town && town.id !== lastAnnouncedTownId) {
@@ -636,6 +700,7 @@ onUnmounted(() => {
   if (mapResizeObserver) mapResizeObserver.disconnect()
   if (asideResizeObserver) asideResizeObserver.disconnect()
   document.removeEventListener('visibilitychange', onVisibilityChange)
+  clearTimeout(pendingDisplayTimer)
 })
 
 // ── Draw route on map when route loads ────────────────────────────────
