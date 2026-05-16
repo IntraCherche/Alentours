@@ -138,6 +138,9 @@ export function useNearbyTowns() {
           title:          t.wiki.title,
           extract:        includeExtract ? (t.wiki.extract?.slice(0, 500) ?? null) : null,
           qid:            t.wiki.qid,
+          thumbnail:      t.wiki.thumbnail,
+          image:          t.wiki.image,
+          coat:           t.wiki.coat,
           population:     t.wiki.population,
           elevation:      t.wiki.elevation,
           demonyms:       t.wiki.demonyms,
@@ -207,7 +210,9 @@ export function useNearbyTowns() {
       const cached = nearestFromCache(lat, lng, heading, 15000)
       if (cached.length) {
         // Enrich cache-hit towns that are missing wiki data: IDB first, then live fetch.
-        const needsWiki = cached.filter(t => !t.wiki)
+        // Also catches towns loaded from old localStorage that had thumbnail/coat stripped
+        // (thumbnail === undefined means the key was absent, vs. null = tried & unavailable).
+        const needsWiki = cached.filter(t => !t.wiki || t.wiki.thumbnail === undefined)
         if (needsWiki.length) {
           let idbWiki = {}
           try { idbWiki = await wikiCacheGetMany(needsWiki.map(t => t.id)) } catch {}
@@ -216,9 +221,10 @@ export function useNearbyTowns() {
             if (idbWiki[t.id]) {
               t.wiki = idbWiki[t.id]
               if (townCache[t.id]) townCache[t.id].wiki = t.wiki
-            } else {
+            } else if (!t.wiki) {
               stillMissing.push(t)
             }
+            // If wiki is partial (stripped from localStorage) and not in IDB, leave as is
           }
           if (stillMissing.length) {
             await fetchWikiSummaryBatch(stillMissing, lang.value)
