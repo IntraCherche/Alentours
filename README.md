@@ -11,8 +11,9 @@ Designed to be glanced at from the passenger seat or mounted on a motorhome scre
 ## What it does
 
 - **Directional awareness** — large arrows (⬅ ➡ ⬆ ⬇) flank the town name and show at a glance where the town sits relative to your heading; color-coded by direction
-- **Route planning** — type an origin and destination, the app builds a road route and draws it on the map
-- **GPS tracking** — follows your position in real time, draws your actual path over the planned route, shows current speed
+- **Multi-leg trips** — plan several legs of a journey and switch between them with a tab bar; each leg saves its own GPS path, progress, and towns cache; only one leg is active at a time
+- **Route planning** — type an origin and destination; progress is projected along the straight line between them with distance done, distance left, ETA, and driven distance (odometer)
+- **GPS tracking** — follows your position in real time, draws your actual path over the planned route, shows current and average speed
 - **Route progress** — progress bar with distance done, distance left, ETA and percentage
 - **Nearest town panel** — as you drive, shows the closest town with:
   - Coat of arms (blason) fetched from Wikidata, shown next to the town name
@@ -20,7 +21,7 @@ Designed to be glanced at from the passenger seat or mounted on a motorhome scre
   - Nickname (e.g. "La Ville Rose"), population, altitude, inhabitant names, rivers, department (+ INSEE code) and region
   - Current mayor with gender indicator (♂ / ♀)
   - Auto-scrolling Wikipedia extract for long descriptions
-- **Offline-first pre-fetch** — at trip start, all towns along the route are fetched from Overpass, Wikipedia, and Wikidata and cached locally; no further network calls are needed while driving
+- **Offline-first pre-fetch** — at trip start, all towns along the route are fetched from Overpass, Wikipedia, and Wikidata and cached locally; no further network calls are needed while driving; enrichment data is stored permanently in IndexedDB so revisited towns are instant
 - **Scalable UI** — font-size slider (×0.8 → ×2.0) in settings for easy reading at distance; progress and town panels scale together
 - **Voice announcements (TTS)** — when a new town is detected, a natural-language sentence is spoken: town name, department, region, direction, and nickname if available
 - **Dark / light theme** and EN / FR language, both persisted
@@ -35,10 +36,11 @@ Designed to be glanced at from the passenger seat or mounted on a motorhome scre
 | Map | Leaflet + OpenStreetMap tiles |
 | GPS | Browser Geolocation API |
 | Geocoding | Nominatim (OpenStreetMap) |
-| Routing | OSRM public API |
+| Route progress | Straight-line (haversine) projection |
 | Nearby towns | Overpass API |
-| Town descriptions | Wikipedia REST API (`/page/summary`) |
+| Town descriptions | MediaWiki Action API (batch, with geo-search fallback) |
 | Enriched town data | Wikidata SPARQL (`query.wikidata.org`) |
+| Wiki cache | IndexedDB (permanent, cross-session) |
 | Offline / PWA | vite-plugin-pwa + Workbox |
 
 ## Setup
