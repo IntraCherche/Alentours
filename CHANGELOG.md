@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.4.0] — 2026-05-16
+
+### Added
+- **Multi-trip tab bar**: manage several trip legs simultaneously with only one active at a time. A compact tab bar appears between the header and the map once the first trip is started, showing each leg's destination and live progress percentage. Tabs support one-tap switching, creating a new leg (+), and permanent deletion (×).
+- Switching trips instantly saves the current GPS path, progress, and towns cache, then restores the selected trip's full state — no re-prefetch required since Wikidata/Wikipedia enrichment is already in the persistent IndexedDB cache.
+- Existing sessions are automatically migrated into the trips list on first load after the update.
+
+---
+
 ## [1.3.1] — 2026-05-16
 
 ### Added
