@@ -259,7 +259,8 @@ export function useNearbyTowns() {
       const data = await res.json()
       const elements = data.elements ?? []
 
-      const list = elements.map(el => ({
+      const PLACE_RANK = { village: 1, town: 2, city: 3 }
+      const sorted = elements.map(el => ({
         id: el.id, name: el.tags.name,
         nameEn: el.tags['name:en'] || el.tags.name,
         nameFr: el.tags['name:fr'] || el.tags.name,
@@ -269,7 +270,17 @@ export function useNearbyTowns() {
         distance: haversine(lat, lng, el.lat, el.lon),
         side: computeSide(lat, lng, heading, el.lat, el.lon),
         wiki: null
-      })).sort((a, b) => a.distance - b.distance).slice(0, 5)
+      })).sort((a, b) => a.distance - b.distance)
+
+      // Take the 5 nearest of each place rank so that towns/cities are never
+      // crowded out by a wall of villages when a place-type filter is active.
+      const byRank = { 1: [], 2: [], 3: [] }
+      for (const t of sorted) {
+        const r = PLACE_RANK[t.place] ?? 1
+        if (byRank[r].length < 5) byRank[r].push(t)
+      }
+      const list = [...byRank[3], ...byRank[2], ...byRank[1]]
+        .sort((a, b) => a.distance - b.distance)
 
       let cachedWiki = {}
       try { cachedWiki = await wikiCacheGetMany(list.map(t => t.id)) } catch {}
@@ -295,7 +306,10 @@ export function useNearbyTowns() {
     }
   }
 
-  // Pick nearest towns from cache, add distance + side
+  // Pick nearest towns from cache, add distance + side.
+  // Returns all places within radius without slicing so that a place-type
+  // filter applied upstream (App.vue filteredTowns) always has candidates —
+  // even in rural areas where many villages are closer than the nearest town.
   function nearestFromCache(lat, lng, heading, radiusM) {
     return Object.values(townCache)
       .map(t => ({
@@ -305,7 +319,6 @@ export function useNearbyTowns() {
       }))
       .filter(t => t.distance <= radiusM)
       .sort((a, b) => a.distance - b.distance)
-      .slice(0, 5)
   }
 
   function clearCache() {
