@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.4.4] — 2026-05-16
+
+### Fixed
+- **Android TTS regression (v1.4.3)** — the conditional `ss.speaking || ss.pending` check in the new `speak()` implementation could send the first call into the 50 ms timeout path on certain Android Chrome builds where `ss.pending` is truthy at startup. A queued timeout then raced with the next synchronous `speak()`, causing a stale utterance to play after the current one ("wrong town announced") and in some states preventing the aside from updating. Fix: revert to the original always-cancel-then-speak approach on Android; the 50 ms iOS delay is now guarded by an explicit `isIOSDevice` platform check, keeping Android behaviour identical to v1.4.2.
+- **iOS hint `computed` order** — `showIosHint` was declared before the `watching` ref it references; moved after the geolocation setup to eliminate the temporal dead zone dependency.
+
+---
+
 ## [1.4.3] — 2026-05-16
 
 ### Added

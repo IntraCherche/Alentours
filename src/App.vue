@@ -394,6 +394,9 @@ const menuOpen     = ref(false)
 const settingsOpen = ref(false)
 const aboutOpen    = ref(false)
 
+// ── Geolocation ────────────────────────────────────────────────────────
+const { position, error: geoError, watching, start: startGps, stop: stopGps } = useGeolocation()
+
 // ── iOS auto-lock hint ─────────────────────────────────────────────────
 const isIOS = /iP(hone|ad|od)/i.test(navigator.userAgent)
 const iosHintDismissed = ref(localStorage.getItem('ios-sleep-hint-dismissed') === 'true')
@@ -402,9 +405,6 @@ function dismissIosHint() {
   iosHintDismissed.value = true
   localStorage.setItem('ios-sleep-hint-dismissed', 'true')
 }
-
-// ── Geolocation ────────────────────────────────────────────────────────
-const { position, error: geoError, watching, start: startGps, stop: stopGps } = useGeolocation()
 
 // ── Session ────────────────────────────────────────────────────────────
 const { loadSession, saveSession, clearSession, saveLocations, loadLocations } = useSession()
