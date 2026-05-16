@@ -339,9 +339,102 @@ export function useNearbyTowns() {
     restoreCache()
   }
 
+  function resetThrottle() {
+    lastQueryLat  = null
+    lastQueryLng  = null
+    lastQueryTime = 0
+  }
+
+  // ── 3. CITY-ONLY LOOKUP (wide radius, explicit trigger) ──────────────
+  // Used when the place-type filter is set to "city". Cities are rare and
+  // visible from tens of kilometres, so we search 80 km and bypass the
+  // normal throttle (this is triggered explicitly on filter change / GPS fix).
+  async function fetchNearestCity(lat, lng, heading) {
+    // Cache path: find the nearest city anywhere in the prefetch cache.
+    if (Object.keys(townCache).length) {
+      const cities = Object.values(townCache)
+        .filter(t => t.place === 'city')
+        .map(t => ({
+          ...t,
+          distance: haversine(lat, lng, t.lat, t.lng),
+          side: computeSide(lat, lng, heading, t.lat, t.lng)
+        }))
+        .sort((a, b) => a.distance - b.distance)
+
+      if (cities.length) {
+        const needsWiki = cities.filter(t => !t.wiki || t.wiki.thumbnail === undefined)
+        if (needsWiki.length) {
+          let idbWiki = {}
+          try { idbWiki = await wikiCacheGetMany(needsWiki.map(t => t.id)) } catch {}
+          const stillMissing = []
+          for (const t of needsWiki) {
+            if (idbWiki[t.id]) { t.wiki = idbWiki[t.id]; if (townCache[t.id]) townCache[t.id].wiki = t.wiki }
+            else if (!t.wiki) stillMissing.push(t)
+          }
+          if (stillMissing.length) {
+            await fetchWikiSummaryBatch(stillMissing, lang.value)
+            await enrichWithWikidata(stillMissing, lang.value)
+            try { await wikiCachePutMany(stillMissing.filter(t => t.wiki).map(t => ({ id: t.id, wiki: t.wiki }))) } catch {}
+            for (const t of stillMissing) { if (t.wiki && townCache[t.id]) townCache[t.id].wiki = t.wiki }
+          }
+        }
+        towns.value = cities
+        return
+      }
+      // Cache exists but has no cities — fall through to live query.
+    }
+
+    // Live query: cities only, 80 km radius.
+    loading.value = true
+    error.value = null
+    try {
+      const query = `
+        [out:json][timeout:15];
+        (node["place"="city"]["name"](around:80000,${lat},${lng}););
+        out body;
+      `
+      const res = await fetch(OVERPASS_URL, {
+        method: 'POST',
+        body: 'data=' + encodeURIComponent(query)
+      })
+      const data = await res.json()
+      const list = (data.elements ?? []).map(el => ({
+        id: el.id, name: el.tags.name,
+        nameEn: el.tags['name:en'] || el.tags.name,
+        nameFr: el.tags['name:fr'] || el.tags.name,
+        place: el.tags.place,
+        population: el.tags.population ? parseInt(el.tags.population) : null,
+        lat: el.lat, lng: el.lon,
+        distance: haversine(lat, lng, el.lat, el.lon),
+        side: computeSide(lat, lng, heading, el.lat, el.lon),
+        wiki: null
+      })).sort((a, b) => a.distance - b.distance)
+
+      let cachedWiki = {}
+      try { cachedWiki = await wikiCacheGetMany(list.map(t => t.id)) } catch {}
+      const needsEnrich = []
+      for (const t of list) {
+        if (cachedWiki[t.id]) t.wiki = cachedWiki[t.id]
+        else needsEnrich.push(t)
+      }
+      if (needsEnrich.length) {
+        await fetchWikiSummaryBatch(needsEnrich, lang.value)
+        await enrichWithWikidata(needsEnrich, lang.value)
+        try { await wikiCachePutMany(needsEnrich.filter(t => t.wiki).map(t => ({ id: t.id, wiki: t.wiki }))) } catch {}
+      }
+
+      towns.value = list
+    } catch (err) {
+      error.value = err.message
+    } finally {
+      loading.value = false
+    }
+  }
+
   return {
     towns, loading, prefetching, prefetchProgress, prefetchCurrentTown, error,
-    prefetchForRoute, fetchNearbyTowns, restoreCache, clearCache, exportTownCache, importTownCache
+    prefetchForRoute, fetchNearbyTowns, fetchNearestCity, resetThrottle,
+    restoreCache, clearCache, exportTownCache, importTownCache
   }
 }
 

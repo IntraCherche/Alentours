@@ -146,6 +146,12 @@
           <div v-else class="town-extract town-extract--dim">{{ t('noDescription') }}</div>
         </div>
 
+        <!-- No city in range (city filter active, GPS running, query done) -->
+        <div v-else-if="minPlaceType === 'city' && position && !townsLoading" class="panel panel--waiting">
+          <div class="waiting-icon">🏙</div>
+          <div class="waiting-text">{{ t('noCityInSight') }}</div>
+        </div>
+
         <!-- Waiting -->
         <div v-if="!position" class="panel panel--waiting">
           <div class="waiting-icon">⌛</div>
@@ -270,6 +276,7 @@
           <select class="text-input lang-select" v-model="minPlaceType">
             <option value="all">{{ t('placeFilterAll') }}</option>
             <option value="town">{{ t('placeFilterTown') }}</option>
+            <option value="city">{{ t('placeFilterCity') }}</option>
           </select>
         </section>
 
@@ -390,7 +397,7 @@ const {
 } = useRouteProgress()
 
 // ── Nearby towns ───────────────────────────────────────────────────────
-const { towns, prefetching, prefetchProgress, prefetchCurrentTown, prefetchForRoute, fetchNearbyTowns, restoreCache, clearCache, exportTownCache, importTownCache } = useNearbyTowns()
+const { towns, loading: townsLoading, prefetching, prefetchProgress, prefetchCurrentTown, prefetchForRoute, fetchNearbyTowns, fetchNearestCity, resetThrottle, restoreCache, clearCache, exportTownCache, importTownCache } = useNearbyTowns()
 
 const prefetchElapsed = ref(0)
 let prefetchTimer = null
@@ -435,9 +442,19 @@ const drivenDistance = computed(() => {
 // ── Place-type filter ──────────────────────────────────────────────────
 const PLACE_RANK = { village: 1, town: 2, city: 3 }
 
-const VALID_PLACE_TYPES = new Set(['all', 'town'])
+const VALID_PLACE_TYPES = new Set(['all', 'town', 'city'])
 const minPlaceType = ref(VALID_PLACE_TYPES.has(localStorage.getItem('minPlaceType')) ? localStorage.getItem('minPlaceType') : 'all')
-watch(minPlaceType, v => localStorage.setItem('minPlaceType', v))
+watch(minPlaceType, async (type) => {
+  localStorage.setItem('minPlaceType', type)
+  if (!position.value) return
+  const { lat, lng, heading } = position.value
+  if (type === 'city') {
+    await fetchNearestCity(lat, lng, heading)
+  } else {
+    resetThrottle()
+    await fetchNearbyTowns(lat, lng, heading)
+  }
+})
 
 const filteredTowns = computed(() => {
   if (minPlaceType.value === 'all') return towns.value ?? []
@@ -838,7 +855,11 @@ watch(position, async (pos) => {
   updateMap(pos.lat, pos.lng)
   if (routeLoaded.value) {
     updatePosition(pos.lat, pos.lng)
-    await fetchNearbyTowns(pos.lat, pos.lng, pos.heading)
+    if (minPlaceType.value === 'city') {
+      await fetchNearestCity(pos.lat, pos.lng, pos.heading)
+    } else {
+      await fetchNearbyTowns(pos.lat, pos.lng, pos.heading)
+    }
   }
 
   // Average speed: initialise on first fix, then update each fix
