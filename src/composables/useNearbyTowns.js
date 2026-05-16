@@ -23,6 +23,7 @@ export function useNearbyTowns() {
   const loading     = ref(false)
   const prefetching = ref(false)
   const prefetchProgress = ref(0)   // 0–100 for UI feedback
+  const prefetchCurrentTown = ref('')
   const error       = ref(null)
 
   // In-memory cache: OSM id → enriched town object
@@ -36,6 +37,7 @@ export function useNearbyTowns() {
     error.value = null
 
     let fakeInterval = null
+    let townCycler = null
     try {
       // Single bounding-box query — far faster than N union circles on Overpass,
       // avoids server-side 25 s timeout that caused progress to stall then jump to 100%.
@@ -87,6 +89,13 @@ export function useNearbyTowns() {
       }
 
       const uniqueList = Object.values(unique)
+
+      // Cycle through town names one by one so the user sees activity
+      let cycleIdx = 0
+      townCycler = setInterval(() => {
+        prefetchCurrentTown.value = uniqueList[cycleIdx % uniqueList.length]?.name ?? ''
+        cycleIdx++
+      }, 400)
 
       // Load from persistent IDB cache — towns already known skip all network fetches
       let cachedWiki = {}
@@ -160,6 +169,8 @@ export function useNearbyTowns() {
       error.value = err.message
     } finally {
       clearInterval(fakeInterval)
+      clearInterval(townCycler)
+      prefetchCurrentTown.value = ''
       prefetching.value = false
     }
   }
@@ -297,7 +308,7 @@ export function useNearbyTowns() {
   }
 
   return {
-    towns, loading, prefetching, prefetchProgress, error,
+    towns, loading, prefetching, prefetchProgress, prefetchCurrentTown, error,
     prefetchForRoute, fetchNearbyTowns, restoreCache, clearCache
   }
 }

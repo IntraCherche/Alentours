@@ -204,7 +204,7 @@
           <div class="mini-progress">
             <div class="mini-progress__bar" :style="{ width: prefetchProgress + '%' }"></div>
           </div>
-          <p class="meta-text">{{ prefetchProgress }}% · {{ prefetchElapsed }} s{{ t('preloadingWikiSuffix') }}</p>
+          <p class="meta-text">{{ prefetchProgress }}% · {{ prefetchElapsed }} s — <template v-if="prefetchCurrentTown">{{ t('preloadingWikiFor') }} {{ prefetchCurrentTown }}</template><template v-else>{{ t('queryingMapData') }}</template></p>
         </section>
 
         <!-- Active trip -->
@@ -373,7 +373,7 @@ const {
 } = useRouteProgress()
 
 // ── Nearby towns ───────────────────────────────────────────────────────
-const { towns, prefetching, prefetchProgress, prefetchForRoute, fetchNearbyTowns, restoreCache, clearCache } = useNearbyTowns()
+const { towns, prefetching, prefetchProgress, prefetchCurrentTown, prefetchForRoute, fetchNearbyTowns, restoreCache, clearCache } = useNearbyTowns()
 
 const prefetchElapsed = ref(0)
 let prefetchTimer = null
