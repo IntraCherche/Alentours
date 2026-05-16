@@ -38,7 +38,7 @@ const translations = {
     startTrip: '▶ Start Trip',
     buildingRoute: 'Building route…',
     preloadingTowns: 'Pre-loading towns…',
-    preloadingWikiSuffix: '% — downloading Wikipedia info for offline use',
+    preloadingWikiSuffix: ' — downloading Wikipedia info for offline use',
     activeTrip: 'Active Trip',
     total: 'total',
     newTrip: '✕ New trip',
@@ -83,6 +83,10 @@ const translations = {
     distanceUnits: 'Distance units',
     distanceMetric: 'Metric (km)',
     distanceImperial: 'Imperial (mi)',
+    cacheMode: 'Cache mode',
+    cacheModeNone: 'No cache · live lookups only',
+    cacheModeBalanced: 'Balanced · download at start',
+    cacheModeOffline: 'Offline use · full download',
   },
   fr: {
     noRoute: 'Aucun itinéraire',
@@ -117,7 +121,7 @@ const translations = {
     startTrip: '▶ Démarrer',
     buildingRoute: "Calcul de l'itinéraire…",
     preloadingTowns: 'Chargement des villes…',
-    preloadingWikiSuffix: '% — téléchargement des infos Wikipedia hors ligne',
+    preloadingWikiSuffix: ' — téléchargement des infos Wikipedia hors ligne',
     activeTrip: 'Trajet en cours',
     total: 'au total',
     newTrip: '✕ Nouveau trajet',
@@ -162,6 +166,10 @@ const translations = {
     distanceUnits: 'Unités de distance',
     distanceMetric: 'Métrique (km)',
     distanceImperial: 'Impérial (mi)',
+    cacheMode: 'Mode cache',
+    cacheModeNone: 'Aucun cache · connexion requise',
+    cacheModeBalanced: 'Équilibré · téléchargement au départ',
+    cacheModeOffline: 'Hors ligne · téléchargement complet',
   }
 }
 

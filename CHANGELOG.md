@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.1] — 2026-05-16
+
+### Fixed
+- Hamburger menu dropdown no longer appears hidden behind the map (z-index raised above Leaflet's pane stack).
+
+---
+
 ## [1.3.0] — 2026-05-16
 
 ### Added

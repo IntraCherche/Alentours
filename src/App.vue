@@ -204,7 +204,7 @@
           <div class="mini-progress">
             <div class="mini-progress__bar" :style="{ width: prefetchProgress + '%' }"></div>
           </div>
-          <p class="meta-text">{{ prefetchProgress }}{{ t('preloadingWikiSuffix') }}</p>
+          <p class="meta-text">{{ prefetchProgress }}% · {{ prefetchElapsed }} s{{ t('preloadingWikiSuffix') }}</p>
         </section>
 
         <!-- Active trip -->
@@ -269,6 +269,16 @@
           <select class="text-input lang-select" v-model="distanceUnit">
             <option value="metric">{{ t('distanceMetric') }}</option>
             <option value="imperial">{{ t('distanceImperial') }}</option>
+          </select>
+        </section>
+
+        <!-- Cache mode -->
+        <section class="drawer-section">
+          <div class="section-label">{{ t('cacheMode') }}</div>
+          <select class="text-input lang-select" v-model="cacheMode">
+            <option value="none">{{ t('cacheModeNone') }}</option>
+            <option value="balanced">{{ t('cacheModeBalanced') }}</option>
+            <option value="offline">{{ t('cacheModeOffline') }}</option>
           </select>
         </section>
 
@@ -363,7 +373,19 @@ const {
 } = useRouteProgress()
 
 // ── Nearby towns ───────────────────────────────────────────────────────
-const { towns, prefetching, prefetchProgress, prefetchForRoute, fetchNearbyTowns, restoreCache } = useNearbyTowns()
+const { towns, prefetching, prefetchProgress, prefetchForRoute, fetchNearbyTowns, restoreCache, clearCache } = useNearbyTowns()
+
+const prefetchElapsed = ref(0)
+let prefetchTimer = null
+watch(prefetching, (active) => {
+  if (active) {
+    prefetchElapsed.value = 0
+    prefetchTimer = setInterval(() => { prefetchElapsed.value++ }, 1000)
+  } else {
+    clearInterval(prefetchTimer)
+    prefetchTimer = null
+  }
+})
 
 // ── TTS ────────────────────────────────────────────────────────────────
 const { ttsEnabled, speak } = useTTS()
@@ -433,6 +455,11 @@ watch(townFontScale, (v) => localStorage.setItem('townFontScale', String(v)))
 // ── Distance units ─────────────────────────────────────────────────────
 const distanceUnit = ref(localStorage.getItem('distanceUnit') || 'metric')
 watch(distanceUnit, v => localStorage.setItem('distanceUnit', v))
+
+// ── Cache mode ──────────────────────────────────────────────────────────
+const CORRIDOR_RADII = { balanced: 6000, offline: 25000 }
+const cacheMode = ref(localStorage.getItem('cacheMode') || 'balanced')
+watch(cacheMode, v => localStorage.setItem('cacheMode', v))
 
 // ── Nearby city display lock ───────────────────────────────────────────
 const nearbyMinDuration = ref(parseInt(localStorage.getItem('nearbyMinDuration') || '120', 10))
@@ -735,6 +762,7 @@ onUnmounted(() => {
   if (asideResizeObserver) asideResizeObserver.disconnect()
   document.removeEventListener('visibilitychange', onVisibilityChange)
   clearTimeout(pendingDisplayTimer)
+  clearInterval(prefetchTimer)
 })
 
 // ── Draw route on map when route loads ────────────────────────────────
@@ -803,8 +831,10 @@ function selectFirstTo()   { if (toSuggestions.value[0])   selectTo(toSuggestion
 async function startTrip() {
   await loadRoute(fromPlace.value, toPlace.value)
   if (routeLoaded.value) {
-    const samples = sampleRoutePoints(10000)
-    await prefetchForRoute(samples)
+    if (cacheMode.value !== 'none') {
+      const samples = sampleRoutePoints(10000)
+      await prefetchForRoute(samples, CORRIDOR_RADII[cacheMode.value])
+    }
     startGps()
     settingsOpen.value = false
     // Persist as soon as the route is ready (before any GPS fix arrives)
@@ -816,6 +846,7 @@ function resetTrip() {
   stopGps()
   clearMapLayers()
   clearSession()
+  clearCache()
   clearTimeout(saveTimer)
   map?.setView([46.5, 2.3], 6)
   routeLoaded.value = false
@@ -1176,7 +1207,7 @@ function sideArrow(s) {
 .menu-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 98;
+  z-index: 799;
 }
 .menu-dropdown {
   position: absolute;
@@ -1186,7 +1217,7 @@ function sideArrow(s) {
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
-  z-index: 99;
+  z-index: 800;
   min-width: 160px;
   overflow: hidden;
   padding: 0.3rem;

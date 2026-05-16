@@ -11,6 +11,7 @@
  */
 import { ref } from 'vue'
 import { useLocale } from './useLocale.js'
+import { wikiCacheGetMany, wikiCachePutMany } from './useWikiCache.js'
 
 const OVERPASS_URL = 'https://overpass-api.de/api/interpreter'
 const CACHE_KEY    = 'motorhome-towns-cache'
@@ -28,21 +29,30 @@ export function useNearbyTowns() {
   let townCache = {}
 
   // ── 1. PRE-FETCH for entire route ────────────────────────────────
-  async function prefetchForRoute(samplePoints) {
+  async function prefetchForRoute(samplePoints, corridorRadiusM = 15000) {
     if (!samplePoints.length) return
     prefetching.value = true
     prefetchProgress.value = 0
     error.value = null
 
+    let fakeInterval = null
     try {
-      // Build one big Overpass query covering all sample points
-      // Each point gets a 12km radius node search
-      const unions = samplePoints.map(
-        ({ lat, lng }) =>
-          `node["place"~"city|town|village"]["name"](around:12000,${lat},${lng});`
-      ).join('\n')
+      // Single bounding-box query — far faster than N union circles on Overpass,
+      // avoids server-side 25 s timeout that caused progress to stall then jump to 100%.
+      const padDeg = corridorRadiusM / 111000
+      const lats = samplePoints.map(p => p.lat)
+      const lngs = samplePoints.map(p => p.lng)
+      const minLat = (Math.min(...lats) - padDeg).toFixed(4)
+      const maxLat = (Math.max(...lats) + padDeg).toFixed(4)
+      const minLng = (Math.min(...lngs) - padDeg).toFixed(4)
+      const maxLng = (Math.max(...lngs) + padDeg).toFixed(4)
 
-      const query = `[out:json][timeout:25];\n(\n${unions}\n);\nout body;`
+      const query = `[out:json][timeout:60];\nnode["place"~"city|town|village"]["name"](${minLat},${minLng},${maxLat},${maxLng});\nout body;`
+
+      // Simulate slow progress while waiting for the Overpass response
+      fakeInterval = setInterval(() => {
+        if (prefetchProgress.value < 18) prefetchProgress.value++
+      }, 900)
 
       const res = await fetch(OVERPASS_URL, {
         method: 'POST',
@@ -50,7 +60,12 @@ export function useNearbyTowns() {
       })
       const data = await res.json()
 
-      const elements = data.elements ?? []
+      clearInterval(fakeInterval)
+      fakeInterval = null
+      // Bbox may cover far more than the corridor for curved routes — filter client-side.
+      const elements = (data.elements ?? []).filter(el =>
+        samplePoints.some(p => haversine(el.lat, el.lon, p.lat, p.lng) <= corridorRadiusM)
+      )
       prefetchProgress.value = 20
 
       // Deduplicate by OSM id, build base town objects
@@ -73,38 +88,78 @@ export function useNearbyTowns() {
 
       const uniqueList = Object.values(unique)
 
-      // Fetch Wikipedia summaries in parallel (batches of 8 to be polite)
-      const batchSize = 8
-      for (let i = 0; i < uniqueList.length; i += batchSize) {
-        const batch = uniqueList.slice(i, i + batchSize)
-        await Promise.allSettled(batch.map(async (town) => {
-          try {
-            const wikiName = lang.value === 'fr' ? town.nameFr : town.nameEn
-            town.wiki = await fetchWikiSummary(wikiName, lang.value)
-          } catch { town.wiki = null }
-        }))
-        prefetchProgress.value = 20 + Math.round(((i + batchSize) / uniqueList.length) * 55)
+      // Load from persistent IDB cache — towns already known skip all network fetches
+      let cachedWiki = {}
+      try { cachedWiki = await wikiCacheGetMany(uniqueList.map(t => t.id)) } catch {}
+      const needsWiki = []
+      for (const t of uniqueList) {
+        if (cachedWiki[t.id]) t.wiki = cachedWiki[t.id]
+        else needsWiki.push(t)
+      }
+
+      // Fetch Wikipedia summaries only for towns not already in the persistent cache
+      const wikiBatch = 20
+      for (let i = 0; i < needsWiki.length; i += wikiBatch) {
+        await fetchWikiSummaryBatch(needsWiki.slice(i, i + wikiBatch), lang.value)
+        prefetchProgress.value = 20 + Math.round(((i + wikiBatch) / Math.max(needsWiki.length, 1)) * 55)
       }
 
       prefetchProgress.value = 75
 
-      // Enrich with Wikidata (population, demonym, rivers, department, region, mayor)
-      await enrichWithWikidata(uniqueList, lang.value, (pct) => {
-        prefetchProgress.value = 75 + Math.round(pct * 0.25)
+      // Enrich with Wikidata only for newly fetched towns
+      await enrichWithWikidata(needsWiki, lang.value, (pct) => {
+        prefetchProgress.value = 75 + Math.round(pct * 25)
       })
 
-      // Store in memory + localStorage
+      // Persist newly enriched towns to the permanent IDB cache (full data, no truncation)
+      try {
+        await wikiCachePutMany(needsWiki.filter(t => t.wiki).map(t => ({ id: t.id, wiki: t.wiki })))
+      } catch {}
+
+      // Store in memory
       townCache = {}
       for (const t of uniqueList) townCache[t.id] = t
 
+      // Persist to localStorage — strip fields that bloat the payload or don't work offline
+      // (thumbnail/image/coat are remote URLs; full extracts can be several KB each).
+      // Falls back to extract-less save if the trimmed version still exceeds quota.
+      const toSaveable = (t, includeExtract) => ({
+        ...t,
+        wiki: t.wiki ? {
+          title:          t.wiki.title,
+          extract:        includeExtract ? (t.wiki.extract?.slice(0, 500) ?? null) : null,
+          qid:            t.wiki.qid,
+          population:     t.wiki.population,
+          elevation:      t.wiki.elevation,
+          demonyms:       t.wiki.demonyms,
+          rivers:         t.wiki.rivers,
+          department:     t.wiki.department,
+          departmentCode: t.wiki.departmentCode,
+          region:         t.wiki.region,
+          mayor:          t.wiki.mayor,
+          mayorGender:    t.wiki.mayorGender,
+          nickname:       t.wiki.nickname,
+        } : null
+      })
       try {
-        localStorage.setItem(CACHE_KEY, JSON.stringify(townCache))
-      } catch {}
+        const payload = {}
+        for (const [id, t] of Object.entries(townCache)) payload[id] = toSaveable(t, true)
+        localStorage.setItem(CACHE_KEY, JSON.stringify(payload))
+      } catch {
+        try {
+          const payload = {}
+          for (const [id, t] of Object.entries(townCache)) payload[id] = toSaveable(t, false)
+          localStorage.setItem(CACHE_KEY, JSON.stringify(payload))
+        } catch {}
+      }
 
       prefetchProgress.value = 100
+      // Let Vue paint the 100% state before the panel disappears
+      await new Promise(r => setTimeout(r, 600))
     } catch (err) {
       error.value = err.message
     } finally {
+      clearInterval(fakeInterval)
       prefetching.value = false
     }
   }
@@ -134,10 +189,41 @@ export function useNearbyTowns() {
     lastQueryLng  = lng
     lastQueryTime = now
 
-    // Try cache first
+    // When a prefetch cache exists, serve from it — but only if nearby towns are found.
+    // If the cache has no towns within range (off-route, cacheMode=none, old session),
+    // fall through to the live network path.
     if (Object.keys(townCache).length) {
-      towns.value = nearestFromCache(lat, lng, heading, 15000)
-      return
+      const cached = nearestFromCache(lat, lng, heading, 15000)
+      if (cached.length) {
+        // Enrich cache-hit towns that are missing wiki data: IDB first, then live fetch.
+        const needsWiki = cached.filter(t => !t.wiki)
+        if (needsWiki.length) {
+          let idbWiki = {}
+          try { idbWiki = await wikiCacheGetMany(needsWiki.map(t => t.id)) } catch {}
+          const stillMissing = []
+          for (const t of needsWiki) {
+            if (idbWiki[t.id]) {
+              t.wiki = idbWiki[t.id]
+              if (townCache[t.id]) townCache[t.id].wiki = t.wiki
+            } else {
+              stillMissing.push(t)
+            }
+          }
+          if (stillMissing.length) {
+            await fetchWikiSummaryBatch(stillMissing, lang.value)
+            await enrichWithWikidata(stillMissing, lang.value)
+            try {
+              await wikiCachePutMany(stillMissing.filter(t => t.wiki).map(t => ({ id: t.id, wiki: t.wiki })))
+            } catch {}
+            for (const t of stillMissing) {
+              if (t.wiki && townCache[t.id]) townCache[t.id].wiki = t.wiki
+            }
+          }
+        }
+        towns.value = cached
+        return
+      }
+      // No cached towns within range — fall through to live fetch.
     }
 
     // No cache — live network call
@@ -168,14 +254,21 @@ export function useNearbyTowns() {
         wiki: null
       })).sort((a, b) => a.distance - b.distance).slice(0, 5)
 
-      await Promise.allSettled(list.map(async t => {
-        try {
-          const wikiName = lang.value === 'fr' ? t.nameFr : t.nameEn
-          t.wiki = await fetchWikiSummary(wikiName, lang.value)
-        } catch {}
-      }))
+      let cachedWiki = {}
+      try { cachedWiki = await wikiCacheGetMany(list.map(t => t.id)) } catch {}
+      const needsEnrich = []
+      for (const t of list) {
+        if (cachedWiki[t.id]) t.wiki = cachedWiki[t.id]
+        else needsEnrich.push(t)
+      }
 
-      await enrichWithWikidata(list, lang.value)
+      if (needsEnrich.length) {
+        await fetchWikiSummaryBatch(needsEnrich, lang.value)
+        await enrichWithWikidata(needsEnrich, lang.value)
+        try {
+          await wikiCachePutMany(needsEnrich.filter(t => t.wiki).map(t => ({ id: t.id, wiki: t.wiki })))
+        } catch {}
+      }
 
       towns.value = list
     } catch (err) {
@@ -198,25 +291,121 @@ export function useNearbyTowns() {
       .slice(0, 5)
   }
 
+  function clearCache() {
+    townCache = {}
+    try { localStorage.removeItem(CACHE_KEY) } catch {}
+  }
+
   return {
     towns, loading, prefetching, prefetchProgress, error,
-    prefetchForRoute, fetchNearbyTowns, restoreCache
+    prefetchForRoute, fetchNearbyTowns, restoreCache, clearCache
   }
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
-async function fetchWikiSummary(name, language = 'en') {
-  const url = `https://${language}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(name)}`
-  const res = await fetch(url)
-  if (!res.ok) return null
-  const data = await res.json()
-  if (data.type === 'disambiguation') return null
-  return {
-    title: data.title,
-    extract: data.extract,
-    thumbnail: data.thumbnail?.source ?? null,
-    qid: data.wikibase_item ?? null
+// Fetch Wikipedia summaries for a batch of towns using the MediaWiki Action API.
+// Mutates town.wiki in place. Max 20 towns per call (API limit for prop=extracts).
+// Falls back to coordinate-based geosearch for towns that return a disambiguation page
+// or no match (e.g. "Fenouillet" → disambiguation → geosearch finds "Fenouillet, Haute-Garonne").
+async function fetchWikiSummaryBatch(towns, language) {
+  if (!towns.length) return
+  const lang = language === 'fr' ? 'fr' : 'en'
+
+  // Map query name → town so we can match API results back
+  const nameToTown = new Map()
+  for (const town of towns) {
+    const name = lang === 'fr' ? (town.nameFr || town.name) : (town.nameEn || town.name)
+    nameToTown.set(name, town)
+  }
+
+  const params = new URLSearchParams({
+    action:      'query',
+    prop:        'extracts|pageimages|pageprops',
+    exintro:     '1',
+    exsentences: '2',
+    explaintext: '1',
+    piprop:      'thumbnail',
+    pithumbsize: '400',
+    titles:      [...nameToTown.keys()].join('|'),
+    format:      'json',
+    redirects:   '1',
+    origin:      '*'
+  })
+
+  let data
+  try {
+    const res = await fetch(`https://${lang}.wikipedia.org/w/api.php?${params}`)
+    if (!res.ok) return
+    data = await res.json()
+  } catch { return }
+
+  // Build: final API title → original query name (following normalization + redirects)
+  const titleToQuery = new Map()
+  for (const { from, to } of (data.query?.normalized ?? [])) titleToQuery.set(to, from)
+  for (const { from, to } of (data.query?.redirects  ?? [])) {
+    titleToQuery.set(to, titleToQuery.get(from) ?? from)
+  }
+
+  for (const page of Object.values(data.query?.pages ?? {})) {
+    if (page.missing !== undefined || page.pageprops?.disambiguation !== undefined) continue
+    const queryName = titleToQuery.get(page.title) ?? page.title
+    const town = nameToTown.get(queryName)
+    if (!town) continue
+    town.wiki = {
+      title:     page.title,
+      extract:   page.extract || null,
+      thumbnail: page.thumbnail?.source ?? null,
+      qid:       page.pageprops?.wikibase_item ?? null
+    }
+  }
+
+  // Geo fallback: towns still without wiki data hit a disambiguation or had no name match
+  for (const town of towns) {
+    if (town.wiki !== null || town.lat == null || town.lng == null) continue
+    await fetchWikiByCoords(town, lang)
+  }
+}
+
+// Resolve a town's Wikipedia article via coordinate proximity when the name lookup fails.
+// Uses generator=geosearch to find articles near the town's OSM coordinates, then picks
+// the closest result whose title contains the town name (or the first valid result).
+async function fetchWikiByCoords(town, lang) {
+  const params = new URLSearchParams({
+    action:      'query',
+    prop:        'extracts|pageimages|pageprops',
+    exintro:     '1',
+    exsentences: '2',
+    explaintext: '1',
+    piprop:      'thumbnail',
+    pithumbsize: '400',
+    generator:   'geosearch',
+    ggscoord:    `${town.lat}|${town.lng}`,
+    ggsradius:   '5000',
+    ggslimit:    '5',
+    format:      'json',
+    origin:      '*'
+  })
+
+  let data
+  try {
+    const res = await fetch(`https://${lang}.wikipedia.org/w/api.php?${params}`)
+    if (!res.ok) return
+    data = await res.json()
+  } catch { return }
+
+  const townName = (lang === 'fr' ? (town.nameFr || town.name) : (town.nameEn || town.name)).toLowerCase()
+  const pages = Object.values(data.query?.pages ?? {})
+    .filter(p => p.missing === undefined && p.pageprops?.disambiguation === undefined)
+
+  const match = pages.find(p => p.title.toLowerCase().includes(townName)) ?? pages[0]
+  if (!match) return
+
+  town.wiki = {
+    title:     match.title,
+    extract:   match.extract || null,
+    thumbnail: match.thumbnail?.source ?? null,
+    qid:       match.pageprops?.wikibase_item ?? null
   }
 }
 
