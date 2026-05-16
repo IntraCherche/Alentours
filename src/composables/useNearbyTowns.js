@@ -307,9 +307,22 @@ export function useNearbyTowns() {
     try { localStorage.removeItem(CACHE_KEY) } catch {}
   }
 
+  function exportTownCache() {
+    return localStorage.getItem(CACHE_KEY) ?? null
+  }
+
+  function importTownCache(raw) {
+    if (raw) {
+      try { localStorage.setItem(CACHE_KEY, raw) } catch {}
+    } else {
+      localStorage.removeItem(CACHE_KEY)
+    }
+    restoreCache()
+  }
+
   return {
     towns, loading, prefetching, prefetchProgress, prefetchCurrentTown, error,
-    prefetchForRoute, fetchNearbyTowns, restoreCache, clearCache
+    prefetchForRoute, fetchNearbyTowns, restoreCache, clearCache, exportTownCache, importTownCache
   }
 }
 

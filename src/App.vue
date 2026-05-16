@@ -61,6 +61,16 @@
     </header>
     <div v-if="menuOpen" class="menu-backdrop" @click="menuOpen = false"></div>
 
+    <!-- ── TRIP TABS ─────────────────────────────────────────────── -->
+    <TripTabs
+      v-if="savedTrips.length > 0"
+      :trips="savedTrips"
+      :active-trip-id="activeTripId"
+      @switch="switchToTrip"
+      @new="createNewTrip"
+      @delete="deleteTripById"
+    />
+
     <!-- ── MAIN GRID ────────────────────────────────────────────── -->
     <main class="main">
       <div class="map-wrap" ref="mapContainer"></div>
@@ -216,7 +226,7 @@
             <span>{{ destination?.name }}</span>
           </div>
           <p class="meta-text">{{ formatKm(totalDistance) }} {{ t('total') }}</p>
-          <button class="btn btn--small" @click="resetTrip">{{ t('newTrip') }}</button>
+          <button class="btn btn--small" @click="createNewTrip">{{ t('newTrip') }}</button>
         </section>
 
         <!-- GPS -->
@@ -342,7 +352,9 @@ import { useRouteProgress } from './composables/useRouteProgress.js'
 import { useNearbyTowns } from './composables/useNearbyTowns.js'
 import { useTTS } from './composables/useTTS.js'
 import { useSession } from './composables/useSession.js'
+import { useTrips } from './composables/useTrips.js'
 import { geocodeSuggestions } from './composables/useGeocoding.js'
+import TripTabs from './components/TripTabs.vue'
 
 // ── App version (injected by Vite from package.json) ──────────────────
 const appVersion = __APP_VERSION__
@@ -364,6 +376,11 @@ const { position, error: geoError, watching, start: startGps, stop: stopGps } = 
 // ── Session ────────────────────────────────────────────────────────────
 const { loadSession, saveSession, clearSession, saveLocations, loadLocations } = useSession()
 
+// ── Trips ──────────────────────────────────────────────────────────────
+const { listTrips, saveTrip, deleteTrip: deleteSavedTrip, getTrip } = useTrips()
+const activeTripId = ref(localStorage.getItem('motorhome-active-trip-id') || null)
+const savedTrips   = ref([])
+
 // ── Route ──────────────────────────────────────────────────────────────
 const {
   loadRoute, updatePosition, sampleRoutePoints, restoreRoute,
@@ -373,7 +390,7 @@ const {
 } = useRouteProgress()
 
 // ── Nearby towns ───────────────────────────────────────────────────────
-const { towns, prefetching, prefetchProgress, prefetchCurrentTown, prefetchForRoute, fetchNearbyTowns, restoreCache, clearCache } = useNearbyTowns()
+const { towns, prefetching, prefetchProgress, prefetchCurrentTown, prefetchForRoute, fetchNearbyTowns, restoreCache, clearCache, exportTownCache, importTownCache } = useNearbyTowns()
 
 const prefetchElapsed = ref(0)
 let prefetchTimer = null
@@ -689,6 +706,26 @@ function updateMap(lat, lng) {
 // ── Session persistence helpers ────────────────────────────────────────
 let saveTimer = null
 
+function buildTripSnapshot() {
+  const path = actualPath.value
+  return {
+    id:                activeTripId.value,
+    fromPlace:         fromPlace.value,
+    toPlace:           toPlace.value,
+    origin:            origin.value,
+    destination:       destination.value,
+    routeName:         routeName.value,
+    totalDistance:     totalDistance.value,
+    lastPosition:      position.value ? { lat: position.value.lat, lng: position.value.lng } : null,
+    actualPath:        path.length > 500 ? path.slice(-500) : path,
+    townsCache:        exportTownCache(),
+    progress:          progress.value ?? 0,
+    tripStartTime:     tripStartTime.value,
+    tripStartDistance: tripStartDistance.value,
+    savedAt:           Date.now()
+  }
+}
+
 function persistSession() {
   if (!routeLoaded.value) return
   saveSession({
@@ -701,6 +738,10 @@ function persistSession() {
     lastPosition: position.value ? { lat: position.value.lat, lng: position.value.lng } : null,
     actualPath:   actualPath.value
   })
+  if (activeTripId.value) {
+    saveTrip(buildTripSnapshot())
+    savedTrips.value = listTrips()
+  }
 }
 
 function scheduleSave() {
@@ -740,7 +781,15 @@ function restoreFromSession() {
 
 onMounted(async () => {
   await initMap()
+  savedTrips.value = listTrips()
   const resumed = restoreFromSession()
+  if (resumed && !activeTripId.value) {
+    // Migrate a pre-existing session into the trips system
+    const newId = crypto.randomUUID()
+    activeTripId.value = newId
+    localStorage.setItem('motorhome-active-trip-id', newId)
+    persistSession()
+  }
   if (!resumed) {
     restoreCache()
     const locs = loadLocations()
@@ -831,18 +880,49 @@ function selectFirstTo()   { if (toSuggestions.value[0])   selectTo(toSuggestion
 async function startTrip() {
   await loadRoute(fromPlace.value, toPlace.value)
   if (routeLoaded.value) {
+    const newId = crypto.randomUUID()
+    activeTripId.value = newId
+    localStorage.setItem('motorhome-active-trip-id', newId)
     if (cacheMode.value !== 'none') {
       const samples = sampleRoutePoints(10000)
       await prefetchForRoute(samples, CORRIDOR_RADII[cacheMode.value])
     }
     startGps()
     settingsOpen.value = false
-    // Persist as soon as the route is ready (before any GPS fix arrives)
     persistSession()
   }
 }
 
 function resetTrip() {
+  stopGps()
+  clearMapLayers()
+  if (activeTripId.value) {
+    deleteSavedTrip(activeTripId.value)
+    activeTripId.value = null
+    localStorage.removeItem('motorhome-active-trip-id')
+    savedTrips.value = listTrips()
+  }
+  clearSession()
+  clearCache()
+  clearTimeout(saveTimer)
+  map?.setView([46.5, 2.3], 6)
+  routeLoaded.value = false
+  routeName.value = ''
+  towns.value = []
+  actualPath.value = []
+  lastSavedPosition = null
+  isFirstPositionAfterRestore = false
+  fromQuery.value = ''
+  toQuery.value = ''
+  fromPlace.value = null
+  toPlace.value = null
+  tripStartTime.value     = null
+  tripStartDistance.value = null
+  avgSpeedMs.value        = null
+}
+
+function createNewTrip() {
+  if (routeLoaded.value && activeTripId.value) persistSession()
   stopGps()
   clearMapLayers()
   clearSession()
@@ -862,6 +942,62 @@ function resetTrip() {
   tripStartTime.value     = null
   tripStartDistance.value = null
   avgSpeedMs.value        = null
+  activeTripId.value = null
+  localStorage.removeItem('motorhome-active-trip-id')
+  settingsOpen.value = true
+}
+
+async function switchToTrip(id) {
+  if (id === activeTripId.value) return
+  const trip = getTrip(id)
+  if (!trip) return
+
+  if (routeLoaded.value && activeTripId.value) persistSession()
+
+  stopGps()
+  clearMapLayers()
+  clearTimeout(saveTimer)
+
+  restoreRoute(trip)
+  fromPlace.value  = trip.fromPlace
+  toPlace.value    = trip.toPlace
+  fromQuery.value  = trip.fromPlace?.name ?? ''
+  toQuery.value    = trip.toPlace?.name   ?? ''
+  actualPath.value = trip.actualPath ?? []
+  lastSavedPosition        = trip.lastPosition
+  isFirstPositionAfterRestore = !!trip.lastPosition
+  tripStartTime.value     = trip.tripStartTime ?? null
+  tripStartDistance.value = trip.tripStartDistance ?? null
+  avgSpeedMs.value        = null
+
+  importTownCache(trip.townsCache)
+
+  activeTripId.value = id
+  localStorage.setItem('motorhome-active-trip-id', id)
+  saveSession({
+    fromPlace:     trip.fromPlace,
+    toPlace:       trip.toPlace,
+    totalDistance: trip.totalDistance,
+    origin:        trip.origin,
+    destination:   trip.destination,
+    routeName:     trip.routeName,
+    lastPosition:  trip.lastPosition,
+    actualPath:    trip.actualPath ?? []
+  })
+
+  drawPlannedRoute()
+  drawActualPath()
+  fitBoundsToRoute()
+  startGps()
+}
+
+function deleteTripById(id) {
+  if (id === activeTripId.value) {
+    resetTrip()
+  } else {
+    deleteSavedTrip(id)
+    savedTrips.value = listTrips()
+  }
 }
 
 function toggleGps() {
