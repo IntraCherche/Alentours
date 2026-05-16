@@ -270,7 +270,6 @@
           <select class="text-input lang-select" v-model="minPlaceType">
             <option value="all">{{ t('placeFilterAll') }}</option>
             <option value="town">{{ t('placeFilterTown') }}</option>
-            <option value="city">{{ t('placeFilterCity') }}</option>
           </select>
         </section>
 
@@ -436,7 +435,8 @@ const drivenDistance = computed(() => {
 // ── Place-type filter ──────────────────────────────────────────────────
 const PLACE_RANK = { village: 1, town: 2, city: 3 }
 
-const minPlaceType = ref(localStorage.getItem('minPlaceType') || 'all')
+const VALID_PLACE_TYPES = new Set(['all', 'town'])
+const minPlaceType = ref(VALID_PLACE_TYPES.has(localStorage.getItem('minPlaceType')) ? localStorage.getItem('minPlaceType') : 'all')
 watch(minPlaceType, v => localStorage.setItem('minPlaceType', v))
 
 const filteredTowns = computed(() => {
