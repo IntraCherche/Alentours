@@ -66,6 +66,7 @@
       v-if="savedTrips.length > 0"
       :trips="savedTrips"
       :active-trip-id="activeTripId"
+      :live-progress="progress"
       @switch="switchToTrip"
       @new="createNewTrip"
       @delete="deleteTripById"

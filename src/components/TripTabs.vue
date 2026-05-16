@@ -10,10 +10,10 @@
       >
         <div class="tab__content">
           <span class="tab__dest">{{ trip.destination?.name ?? trip.toPlace?.name ?? '?' }}</span>
-          <span class="tab__pct">{{ Math.round(trip.progress ?? 0) }}%</span>
+          <span class="tab__pct">{{ Math.round(trip.id === activeTripId && props.liveProgress !== null ? props.liveProgress : (trip.progress ?? 0)) }}%</span>
         </div>
         <div class="tab__bar">
-          <div class="tab__fill" :style="{ width: (trip.progress ?? 0) + '%' }"></div>
+          <div class="tab__fill" :style="{ width: (trip.id === activeTripId && props.liveProgress !== null ? props.liveProgress : (trip.progress ?? 0)) + '%' }"></div>
         </div>
         <button class="tab__close" @click.stop="$emit('delete', trip.id)" title="Delete trip">×</button>
       </button>
@@ -23,9 +23,10 @@
 </template>
 
 <script setup>
-defineProps({
-  trips:       { type: Array,  default: () => [] },
-  activeTripId: { type: String, default: null }
+const props = defineProps({
+  trips:        { type: Array,  default: () => [] },
+  activeTripId: { type: String, default: null },
+  liveProgress: { type: Number, default: null }
 })
 defineEmits(['switch', 'new', 'delete'])
 </script>
