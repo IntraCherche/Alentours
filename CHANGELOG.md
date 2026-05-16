@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.0] — 2026-05-16
+
+### Changed
+- **Route progress** now uses straight-line (as-the-crow-flies) projection instead of OSRM road routing. Progress only advances when moving toward the destination, unaffected by perpendicular movement. Town pre-fetching samples points along the straight line between origin and destination. Removes the dependency on the external OSRM routing API.
+
+---
+
 ## [1.2.0] — 2026-05-16
 
 ### Added

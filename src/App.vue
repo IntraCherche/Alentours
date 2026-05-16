@@ -353,7 +353,7 @@ const { loadSession, saveSession, clearSession, saveLocations, loadLocations } =
 // ── Route ──────────────────────────────────────────────────────────────
 const {
   loadRoute, updatePosition, sampleRoutePoints, restoreRoute,
-  routePoints, totalDistance, progress, distanceDone, distanceLeft,
+  totalDistance, progress, distanceDone, distanceLeft,
   routeLoaded, routeName, origin, destination,
   loading: routeLoading, error: routeError
 } = useRouteProgress()
@@ -555,9 +555,12 @@ function fitBoundsToRoute() {
 }
 
 function drawPlannedRoute() {
-  if (!map || !L || !routePoints.value.length) return
+  if (!map || !L || !origin.value || !destination.value) return
 
-  const latlngs = routePoints.value.map(p => [p.lat, p.lng])
+  const latlngs = [
+    [origin.value.lat, origin.value.lng],
+    [destination.value.lat, destination.value.lng]
+  ]
 
   routePolyline = L.polyline(latlngs, {
     color: '#7090b0',
@@ -645,7 +648,6 @@ function persistSession() {
   saveSession({
     fromPlace:    fromPlace.value,
     toPlace:      toPlace.value,
-    routePoints:  routePoints.value,
     totalDistance: totalDistance.value,
     origin:       origin.value,
     destination:  destination.value,

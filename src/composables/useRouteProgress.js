@@ -1,17 +1,8 @@
-/**
- * useRouteProgress — builds a route from two coordinates via OSRM,
- * then tracks progress along it using haversine nearest-point logic.
- *
- * Replaces the GPX-based version entirely. No file upload needed.
- */
 import { ref } from 'vue'
 
-const OSRM_URL = 'https://router.project-osrm.org/route/v1/driving'
-
 export function useRouteProgress() {
-  const routePoints = ref([])   // [{ lat, lng, distFromStart }]
-  const totalDistance = ref(0)  // metres
-  const progress = ref(0)       // 0–100
+  const totalDistance = ref(0)
+  const progress = ref(0)
   const distanceDone = ref(0)
   const distanceLeft = ref(0)
   const routeLoaded = ref(false)
@@ -25,36 +16,9 @@ export function useRouteProgress() {
     loading.value = true
     error.value = null
     try {
-      const url = `${OSRM_URL}/${from.lng},${from.lat};${to.lng},${to.lat}` +
-                  `?overview=full&geometries=geojson`
-
-      const res = await fetch(url)
-      if (!res.ok) throw new Error('OSRM request failed')
-      const data = await res.json()
-
-      if (data.code !== 'Ok' || !data.routes?.length) {
-        throw new Error('No route found between these two points.')
-      }
-
-      const coords = data.routes[0].geometry.coordinates
-      // OSRM returns [lng, lat] pairs
-      const points = []
-      let cumDist = 0
-
-      coords.forEach(([lng, lat], i) => {
-        if (i === 0) {
-          points.push({ lat, lng, distFromStart: 0 })
-        } else {
-          const prev = coords[i - 1]
-          cumDist += haversine(prev[1], prev[0], lat, lng)
-          points.push({ lat, lng, distFromStart: cumDist })
-        }
-      })
-
-      routePoints.value = points
-      totalDistance.value = cumDist
       origin.value = from
       destination.value = to
+      totalDistance.value = haversine(from.lat, from.lng, to.lat, to.lng)
       routeName.value = `${from.name} → ${to.name}`
       routeLoaded.value = true
     } catch (err) {
@@ -65,56 +29,46 @@ export function useRouteProgress() {
   }
 
   function updatePosition(lat, lng) {
-    if (!routePoints.value.length) return
+    if (!routeLoaded.value) return
+    const t = projectOntoRoute(lat, lng)
+    distanceDone.value = t * totalDistance.value
+    distanceLeft.value = totalDistance.value - distanceDone.value
+    progress.value = t * 100
+  }
 
-    let minDist = Infinity
-    let closestIdx = 0
+  function projectOntoRoute(lat, lng) {
+    const dLat = destination.value.lat - origin.value.lat
+    const dLng = destination.value.lng - origin.value.lng
+    const apLat = lat - origin.value.lat
+    const apLng = lng - origin.value.lng
+    const t = (apLat * dLat + apLng * dLng) / (dLat * dLat + dLng * dLng)
+    return Math.max(0, Math.min(1, t))
+  }
 
-    routePoints.value.forEach((pt, i) => {
-      const d = haversine(lat, lng, pt.lat, pt.lng)
-      if (d < minDist) {
-        minDist = d
-        closestIdx = i
+  // Sample evenly-spaced points along the straight line for town pre-fetching
+  function sampleRoutePoints(every = 10000) {
+    if (!routeLoaded.value) return []
+    const count = Math.ceil(totalDistance.value / every) + 1
+    return Array.from({ length: count }, (_, i) => {
+      const t = Math.min(1, (i * every) / totalDistance.value)
+      return {
+        lat: origin.value.lat + t * (destination.value.lat - origin.value.lat),
+        lng: origin.value.lng + t * (destination.value.lng - origin.value.lng)
       }
     })
-
-    const nearest = routePoints.value[closestIdx]
-    distanceDone.value = nearest.distFromStart
-    distanceLeft.value = totalDistance.value - distanceDone.value
-    progress.value = totalDistance.value > 0
-      ? Math.min(100, (distanceDone.value / totalDistance.value) * 100)
-      : 0
   }
 
-  // Sample evenly-spaced points for town pre-fetching
-  function sampleRoutePoints(every = 10000) {
-    if (!routePoints.value.length) return []
-    const samples = []
-    let nextTarget = 0
-    for (const pt of routePoints.value) {
-      if (pt.distFromStart >= nextTarget) {
-        samples.push({ lat: pt.lat, lng: pt.lng })
-        nextTarget += every
-      }
-    }
-    const last = routePoints.value.at(-1)
-    if (last) samples.push({ lat: last.lat, lng: last.lng })
-    return samples
-  }
-
-  // Restores a previously-saved route without a network call
-  function restoreRoute({ routePoints: pts, totalDistance: dist, origin: org, destination: dest, routeName: name }) {
-    routePoints.value  = pts
+  function restoreRoute({ totalDistance: dist, origin: org, destination: dest, routeName: name }) {
     totalDistance.value = dist
-    origin.value       = org
-    destination.value  = dest
-    routeName.value    = name
-    routeLoaded.value  = true
+    origin.value = org
+    destination.value = dest
+    routeName.value = name
+    routeLoaded.value = true
   }
 
   return {
     loadRoute, updatePosition, sampleRoutePoints, restoreRoute,
-    routePoints, totalDistance, progress,
+    totalDistance, progress,
     distanceDone, distanceLeft, routeLoaded,
     routeName, origin, destination, loading, error
   }
