@@ -79,6 +79,9 @@ const translations = {
     placeFilterAll: 'All (village, town, city)',
     placeFilterTown: 'Town & city',
     placeFilterCity: 'City only',
+    distanceUnits: 'Distance units',
+    distanceMetric: 'Metric (km)',
+    distanceImperial: 'Imperial (mi)',
   },
   fr: {
     noRoute: 'Aucun itinéraire',
@@ -154,6 +157,9 @@ const translations = {
     placeFilterAll: 'Tout (village, bourg, ville)',
     placeFilterTown: 'Bourg et ville',
     placeFilterCity: 'Ville seulement',
+    distanceUnits: 'Unités de distance',
+    distanceMetric: 'Métrique (km)',
+    distanceImperial: 'Impérial (mi)',
   }
 }
 

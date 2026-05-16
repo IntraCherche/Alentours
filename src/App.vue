@@ -259,6 +259,15 @@
           </select>
         </section>
 
+        <!-- Distance units -->
+        <section class="drawer-section">
+          <div class="section-label">{{ t('distanceUnits') }}</div>
+          <select class="text-input lang-select" v-model="distanceUnit">
+            <option value="metric">{{ t('distanceMetric') }}</option>
+            <option value="imperial">{{ t('distanceImperial') }}</option>
+          </select>
+        </section>
+
         <!-- Town info text size -->
         <section class="drawer-section">
           <div class="section-label">{{ t('textSize') }}</div>
@@ -401,6 +410,10 @@ const gpsStatusClass = computed(() => {
 // ── Town font scale ────────────────────────────────────────────────────
 const townFontScale = ref(parseFloat(localStorage.getItem('townFontScale') || '1.2'))
 watch(townFontScale, (v) => localStorage.setItem('townFontScale', String(v)))
+
+// ── Distance units ─────────────────────────────────────────────────────
+const distanceUnit = ref(localStorage.getItem('distanceUnit') || 'metric')
+watch(distanceUnit, v => localStorage.setItem('distanceUnit', v))
 
 // ── Nearby city display lock ───────────────────────────────────────────
 const nearbyMinDuration = ref(parseInt(localStorage.getItem('nearbyMinDuration') || '120', 10))
@@ -813,13 +826,21 @@ function toggleGps() {
 // ── Helpers ────────────────────────────────────────────────────────────
 function formatKm(m) {
   if (!m) return '—'
+  if (distanceUnit.value === 'imperial') {
+    const mi = m / 1609.344
+    return (mi >= 10 ? mi.toFixed(0) : mi.toFixed(1)) + ' mi'
+  }
   return m >= 1000 ? (m / 1000).toFixed(1) + ' km' : Math.round(m) + ' m'
 }
 function formatPopulation(n) {
   if (!n) return '—'
   return n.toLocaleString(lang.value === 'fr' ? 'fr-FR' : 'en-US')
 }
-function formatSpeed(ms) { return Math.round(ms * 3.6) + ' km/h' }
+function formatSpeed(ms) {
+  return distanceUnit.value === 'imperial'
+    ? Math.round(ms * 2.23694) + ' mph'
+    : Math.round(ms * 3.6) + ' km/h'
+}
 function formatDuration(sec) {
   if (sec < 60) return '< 1 min'
   const h = Math.floor(sec / 3600)
