@@ -21,6 +21,7 @@ Designed to be glanced at from the passenger seat or mounted on a motorhome scre
   - Nickname (e.g. "La Ville Rose"), population, altitude, inhabitant names, rivers, department (+ INSEE code) and region
   - Current mayor with gender indicator (♂ / ♀)
   - Auto-scrolling Wikipedia extract for long descriptions
+- **Place-type filter** — three modes: *All* (village, town, city), *Town & city* (hides hamlets), or *City only* (searches up to 80 km so a city skyline on the horizon is always identified; shows "No city in sight" when none is within range)
 - **Offline-first pre-fetch** — at trip start, all towns along the route are fetched from Overpass, Wikipedia, and Wikidata and cached locally; no further network calls are needed while driving; enrichment data is stored permanently in IndexedDB so revisited towns are instant
 - **Scalable UI** — font-size slider (×0.8 → ×2.0) in settings for easy reading at distance; progress and town panels scale together
 - **Voice announcements (TTS)** — when a new town is detected, a natural-language sentence is spoken: town name, department, region, direction, and nickname if available

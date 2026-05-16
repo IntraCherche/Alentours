@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.4.1] — 2026-05-16
+
+### Changed
+- **"City only" filter** now searches 80 km wide (cities are visible from far away and are sparse enough that 15 km would almost never find one). Switching to this mode triggers an immediate re-fetch; switching back resets the throttle so normal towns reload instantly.
+- **"Town & city" filter** candidate pool changed: `nearestFromCache` now returns all places within range without slicing, and the live path buckets results by place rank (up to 5 per rank) before merging — so towns and cities are never crowded out by a wall of nearby villages.
+
+### Fixed
+- "Town & city" and "City only" filters showed a blank aside panel in rural areas where many hamlets are closer than the nearest town or city.
+- "City only" filter was returning cities from a previous route's prefetch cache regardless of distance (e.g. Toulouse appearing from Roscoff, 700 km away). An 80 km radius cap is now applied to the cache lookup before falling through to a live query.
+- "City only" filter now shows **"No city in sight"** instead of going blank when no city is within 80 km.
+
+---
+
 ## [1.4.0] — 2026-05-16
 
 ### Added
