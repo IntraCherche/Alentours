@@ -110,7 +110,7 @@
           <div v-if="displayedNearest.wiki" class="town-facts">
             <div v-if="displayedNearest.wiki.nickname" class="fact-row">
               <span class="fact-key">{{ t('nickname') }}</span>
-              <span class="fact-val">"{{ displayedNearest.wiki.nickname }}"</span>
+              <span class="fact-val"><em>{{ displayedNearest.wiki.nickname }}</em></span>
             </div>
             <div v-if="displayedNearest.wiki.population" class="fact-row">
               <span class="fact-key">{{ t('population') }}</span>
