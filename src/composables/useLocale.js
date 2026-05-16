@@ -89,6 +89,15 @@ const translations = {
     cacheModeNone: 'No cache · live lookups only',
     cacheModeBalanced: 'Balanced · download at start',
     cacheModeOffline: 'Offline use · full download',
+    ttsAltAndPop_m: 'This {word} sits at {alt} m altitude and has around {pop} inhabitants.',
+    ttsAltAndPop_f: 'This {word} sits at {alt} m altitude and has around {pop} inhabitants.',
+    ttsAltOnly_m: 'This {word} sits at {alt} m altitude.',
+    ttsAltOnly_f: 'This {word} sits at {alt} m altitude.',
+    ttsPopOnly_m: 'This {word} has around {pop} inhabitants.',
+    ttsPopOnly_f: 'This {word} has around {pop} inhabitants.',
+    ttsReadDescription: 'Read aloud town description',
+    ttsOn: 'On',
+    ttsOff: 'Off',
   },
   fr: {
     noRoute: 'Aucun itinéraire',
@@ -174,6 +183,15 @@ const translations = {
     cacheModeNone: 'Aucun cache · connexion requise',
     cacheModeBalanced: 'Équilibré · téléchargement au départ',
     cacheModeOffline: 'Hors ligne · téléchargement complet',
+    ttsAltAndPop_m: 'Ce {word} est situé à {alt} mètres d\'altitude et compte environ {pop} habitants.',
+    ttsAltAndPop_f: 'Cette {word} est située à {alt} mètres d\'altitude et compte environ {pop} habitants.',
+    ttsAltOnly_m: 'Ce {word} est situé à {alt} mètres d\'altitude.',
+    ttsAltOnly_f: 'Cette {word} est située à {alt} mètres d\'altitude.',
+    ttsPopOnly_m: 'Ce {word} compte environ {pop} habitants.',
+    ttsPopOnly_f: 'Cette {word} compte environ {pop} habitants.',
+    ttsReadDescription: 'Lire la description à voix haute',
+    ttsOn: 'Activé',
+    ttsOff: 'Désactivé',
   }
 }
 

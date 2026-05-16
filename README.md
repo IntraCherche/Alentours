@@ -1,4 +1,4 @@
-# ⬡ Alentours
+# <img src="public/icons/icon-192.png" width="40" alt=""> Alentours
 
 You're cruising down the motorway and a city skyline appears on the horizon — but is it to your left or your right? Is that Lyon, Valence, or something else entirely? You can't check your phone, your co-pilot isn't sure, and the motorway sign already flashed past. That small frustration inspired this app.
 
@@ -24,7 +24,7 @@ Designed to be glanced at from the passenger seat or mounted on a motorhome scre
 - **Place-type filter** — three modes: *All* (village, town, city), *Town & city* (hides hamlets), or *City only* (searches up to 80 km so a city skyline on the horizon is always identified; shows "No city in sight" when none is within range)
 - **Offline-first pre-fetch** — at trip start, all towns along the route are fetched from Overpass, Wikipedia, and Wikidata and cached locally; no further network calls are needed while driving; enrichment data is stored permanently in IndexedDB so revisited towns are instant
 - **Scalable UI** — font-size slider (×0.8 → ×2.0) in settings for easy reading at distance; progress and town panels scale together
-- **Voice announcements (TTS)** — when a new town is detected, a natural-language sentence is spoken: town name, department, region, direction, and nickname if available
+- **Voice announcements (TTS)** — when a new town is detected, a natural-language sentence is spoken: town name, department, region, direction, nickname, approximate altitude and population (e.g. "Ce village est situé à 320 m d'altitude et compte environ 460 habitants"); an optional setting also reads the Wikipedia extract aloud
 - **Dark / light theme** and EN / FR language, both persisted
 - **Session persistence** — closing and reopening the app resumes the trip exactly where you left off (route, GPS path, position)
 - **PWA** — installable, OSM tiles and Wikipedia responses cached for offline use

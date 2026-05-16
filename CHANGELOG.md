@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.4.2] — 2026-05-16
+
+### Added
+- **TTS altitude & population** — voice announcements now include the town's altitude and approximate population (e.g. "Ce village est situé à 320 mètres d'altitude et compte environ 460 habitants"). The sentence is grammatically gendered in French (village/bourg → masculine, ville → feminine) and uses the translated place-type word (village / bourg / ville / town / city).
+- Population is rounded for easy listening while driving: nearest 10 below 1 000, nearest 100 below 10 000, nearest 1 000 below 100 000, nearest 10 000 below 1 million, nearest 100 000 above.
+- **"Read aloud town description"** setting — when enabled, the Wikipedia extract shown on screen is also spoken after the main announcement. Toggle in Travel Settings (Off by default).
+
+---
+
 ## [1.4.1] — 2026-05-16
 
 ### Changed

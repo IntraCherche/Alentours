@@ -328,6 +328,15 @@
           </div>
         </section>
 
+        <!-- Voice: read description aloud -->
+        <section class="drawer-section">
+          <div class="section-label">{{ t('ttsReadDescription') }}</div>
+          <select class="text-input lang-select" v-model="ttsReadDescription">
+            <option :value="false">{{ t('ttsOff') }}</option>
+            <option :value="true">{{ t('ttsOn') }}</option>
+          </select>
+        </section>
+
       </div>
     </Transition>
 
@@ -413,6 +422,8 @@ watch(prefetching, (active) => {
 
 // ── TTS ────────────────────────────────────────────────────────────────
 const { ttsEnabled, speak } = useTTS()
+const ttsReadDescription = ref(localStorage.getItem('tts-read-description') === 'true')
+watch(ttsReadDescription, (v) => localStorage.setItem('tts-read-description', String(v)))
 
 // ── Speed tracking ─────────────────────────────────────────────────────
 const tripStartTime     = ref(null)
@@ -533,10 +544,12 @@ const asideScrollDur  = ref(20)
 let lastAnnouncedTownId = null
 
 function announceTown(town) {
-  const dept     = town.wiki?.department
-  const deptCode = town.wiki?.departmentCode
-  const region   = town.wiki?.region
-  const nickname = town.wiki?.nickname
+  const dept       = town.wiki?.department
+  const deptCode   = town.wiki?.departmentCode
+  const region     = town.wiki?.region
+  const nickname   = town.wiki?.nickname
+  const elevation  = town.wiki?.elevation
+  const population = town.wiki?.population
 
   const parts = [town.name]
   if (dept && deptCode) parts.push(`${t('ttsInDept')} ${dept} (${deptCode})`)
@@ -548,6 +561,21 @@ function announceTown(town) {
   if (sideKey) sentence += `, ${t('ttsIsLocated')} ${t(sideKey)}`
   sentence += '.'
   if (nickname) sentence += ` ${t('ttsAlsoKnownAs')} ${nickname}.`
+
+  const PLACE_GENDER = { city: 'f' }
+  const gender = PLACE_GENDER[town.place] ?? 'm'
+  const word = t(`place_${town.place}`) || town.place || ''
+  if (elevation != null && population) {
+    sentence += ' ' + t(`ttsAltAndPop_${gender}`).replace('{word}', word).replace('{alt}', elevation).replace('{pop}', approximatePopulation(population))
+  } else if (elevation != null) {
+    sentence += ' ' + t(`ttsAltOnly_${gender}`).replace('{word}', word).replace('{alt}', elevation)
+  } else if (population) {
+    sentence += ' ' + t(`ttsPopOnly_${gender}`).replace('{word}', word).replace('{pop}', approximatePopulation(population))
+  }
+
+  if (ttsReadDescription.value && town.wiki?.extract) {
+    sentence += ' ' + town.wiki.extract
+  }
 
   speak(sentence, lang.value)
 }
@@ -1045,6 +1073,13 @@ function formatKm(m) {
 function formatPopulation(n) {
   if (!n) return '—'
   return n.toLocaleString(lang.value === 'fr' ? 'fr-FR' : 'en-US')
+}
+function approximatePopulation(n) {
+  if (n < 1000)    return Math.round(n / 10) * 10
+  if (n < 10000)   return Math.round(n / 100) * 100
+  if (n < 100000)  return Math.round(n / 1000) * 1000
+  if (n < 1000000) return Math.round(n / 10000) * 10000
+  return Math.round(n / 100000) * 100000
 }
 function formatSpeed(ms) {
   return distanceUnit.value === 'imperial'
