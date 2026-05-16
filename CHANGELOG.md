@@ -2,8 +2,18 @@
 
 ## [1.3.1] — 2026-05-16
 
+### Added
+- **Cache mode** setting in Travel Settings: choose between *No cache* (live lookups only), *Balanced* (6 km corridor pre-fetched at trip start), or *Offline use* (25 km corridor, full download). Default is Balanced.
+- **Persistent IndexedDB wiki cache** (`useWikiCache.js`): Wikipedia and Wikidata data is stored across sessions so towns are instantly enriched on revisit without any network request.
+- **Elapsed time** shown in the pre-fetch progress bar (e.g. `18% · 4 s — downloading…`).
+
+### Changed
+- **Overpass pre-fetch** now uses a single bounding-box query instead of N union-circle queries, avoiding the server-side 25 s timeout and dramatically reducing pre-fetch time on long routes.
+- **Wikipedia fetching** switched from individual REST summary calls to the MediaWiki Action API batch endpoint (up to 20 towns per request), with a coordinate-based geo-search fallback for disambiguation pages or name mismatches.
+- Pre-fetch now skips towns already present in the persistent IDB cache, so repeated trips over the same area do not re-download anything.
+
 ### Fixed
-- Hamburger menu dropdown no longer appears hidden behind the map (z-index raised above Leaflet's pane stack).
+- Hamburger menu dropdown no longer appears hidden behind the map (z-index raised to 800, above Leaflet's popup pane at 700).
 
 ---
 
