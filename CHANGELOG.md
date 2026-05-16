@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.4.3] — 2026-05-16
+
+### Added
+- **iOS compatibility** — the app now works on iPhone and iPad (iOS 16.4+):
+  - `apple-touch-icon` declared so iOS uses the correct icon when added to the home screen
+  - A discreet banner appears when GPS is active on iOS, reminding the user to disable Auto-Lock so the screen does not sleep mid-drive (shown once, permanently dismissable)
+- **TTS reliability on iOS** — `speechSynthesis` is now guarded against the two most common iOS bugs: `cancel()` is followed by a 50 ms pause before the next `speak()` (iOS drops utterances queued too quickly after a cancel), and a stuck-paused engine is unblocked with `resume()` before speaking
+
+---
+
 ## [1.4.2] — 2026-05-16
 
 ### Added

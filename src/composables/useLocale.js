@@ -98,6 +98,7 @@ const translations = {
     ttsReadDescription: 'Read aloud town description',
     ttsOn: 'On',
     ttsOff: 'Off',
+    iosAutoLockHint: 'On iOS, disable Auto-Lock to keep GPS running while driving.',
   },
   fr: {
     noRoute: 'Aucun itinéraire',
@@ -192,6 +193,7 @@ const translations = {
     ttsReadDescription: 'Lire la description à voix haute',
     ttsOn: 'Activé',
     ttsOff: 'Désactivé',
+    iosAutoLockHint: 'Sur iOS, désactivez le verrouillage auto pour garder le GPS actif.',
   }
 }
 

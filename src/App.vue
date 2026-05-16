@@ -61,6 +61,14 @@
     </header>
     <div v-if="menuOpen" class="menu-backdrop" @click="menuOpen = false"></div>
 
+    <!-- ── iOS AUTO-LOCK HINT ─────────────────────────────────────── -->
+    <Transition name="ios-hint">
+      <div v-if="showIosHint" class="ios-hint">
+        {{ t('iosAutoLockHint') }}
+        <button class="ios-hint__close" @click="dismissIosHint">✕</button>
+      </div>
+    </Transition>
+
     <!-- ── TRIP TABS ─────────────────────────────────────────────── -->
     <TripTabs
       v-if="savedTrips.length > 0"
@@ -385,6 +393,15 @@ const { lang, t } = useLocale()
 const menuOpen     = ref(false)
 const settingsOpen = ref(false)
 const aboutOpen    = ref(false)
+
+// ── iOS auto-lock hint ─────────────────────────────────────────────────
+const isIOS = /iP(hone|ad|od)/i.test(navigator.userAgent)
+const iosHintDismissed = ref(localStorage.getItem('ios-sleep-hint-dismissed') === 'true')
+const showIosHint = computed(() => isIOS && watching.value && !iosHintDismissed.value)
+function dismissIosHint() {
+  iosHintDismissed.value = true
+  localStorage.setItem('ios-sleep-hint-dismissed', 'true')
+}
 
 // ── Geolocation ────────────────────────────────────────────────────────
 const { position, error: geoError, watching, start: startGps, stop: stopGps } = useGeolocation()
@@ -1715,6 +1732,35 @@ function sideArrow(s) {
 .fade-leave-active { transition: opacity 0.2s ease; }
 .fade-enter-from,
 .fade-leave-to     { opacity: 0; }
+
+/* ── iOS auto-lock hint ───────────────────────────────────────────── */
+.ios-hint {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.3rem 1rem;
+  background: rgba(201, 120, 0, 0.1);
+  border-bottom: 1px solid rgba(201, 120, 0, 0.25);
+  font-size: 0.72rem;
+  color: var(--accent);
+  flex-shrink: 0;
+  overflow: hidden;
+}
+.ios-hint__close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.7rem;
+  padding: 0.1rem 0.3rem;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.ios-hint-enter-active,
+.ios-hint-leave-active { transition: max-height 0.3s ease, opacity 0.3s ease; max-height: 48px; }
+.ios-hint-enter-from,
+.ios-hint-leave-to     { max-height: 0; opacity: 0; }
 
 /* ── Portrait layout ──────────────────────────────────────────────── */
 @media (orientation: portrait) {

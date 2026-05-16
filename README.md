@@ -27,7 +27,7 @@ Designed to be glanced at from the passenger seat or mounted on a motorhome scre
 - **Voice announcements (TTS)** — when a new town is detected, a natural-language sentence is spoken: town name, department, region, direction, nickname, approximate altitude and population (e.g. "Ce village est situé à 320 m d'altitude et compte environ 460 habitants"); an optional setting also reads the Wikipedia extract aloud
 - **Dark / light theme** and EN / FR language, both persisted
 - **Session persistence** — closing and reopening the app resumes the trip exactly where you left off (route, GPS path, position)
-- **PWA** — installable, OSM tiles and Wikipedia responses cached for offline use
+- **PWA** — installable on Android and iOS (16.4+), OSM tiles and Wikipedia responses cached for offline use; on iOS a one-time banner reminds the user to disable Auto-Lock while driving
 
 ## Tech stack
 
