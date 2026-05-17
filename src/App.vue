@@ -13,14 +13,6 @@
                 <span class="menu-item__icon">⚙</span>
                 <span>{{ t('settings') }}</span>
               </button>
-              <button class="menu-item" @click="toggleTheme(); menuOpen = false">
-                <span class="menu-item__icon">{{ isDark ? '☾' : '☀' }}</span>
-                <span>{{ isDark ? t('lightMode') : t('darkMode') }}</span>
-              </button>
-              <button class="menu-item" @click="ttsEnabled = !ttsEnabled; menuOpen = false">
-                <span class="menu-item__icon">{{ ttsEnabled ? '🔊' : '🔇' }}</span>
-                <span>{{ ttsEnabled ? t('ttsMute') : t('ttsEnable') }}</span>
-              </button>
               <button class="menu-item" @click="aboutOpen = true; menuOpen = false">
                 <span class="menu-item__icon">ⓘ</span>
                 <span>{{ t('about') }}</span>
@@ -189,161 +181,201 @@
           <button class="icon-btn" @click="settingsOpen = false">✕</button>
         </div>
 
-        <!-- Trip setup -->
-        <section class="drawer-section" v-if="!routeLoaded">
-          <div class="section-label">{{ t('planTrip') }}</div>
+        <!-- Tab bar -->
+        <div class="drawer-tabs">
+          <button class="drawer-tab" :class="{ active: activeTab === 'trip' }" @click="activeTab = 'trip'">{{ t('tabTrip') }}</button>
+          <button class="drawer-tab" :class="{ active: activeTab === 'display' }" @click="activeTab = 'display'">{{ t('tabDisplay') }}</button>
+          <button class="drawer-tab" :class="{ active: activeTab === 'audio' }" @click="activeTab = 'audio'">{{ t('tabAudio') }}</button>
+        </div>
 
-          <div class="input-group">
-            <label class="input-label">{{ t('fromLabel') }}</label>
-            <div class="autocomplete">
-              <input class="text-input" v-model="fromQuery" :placeholder="t('fromPlaceholder')"
-                @input="onFromInput" @keydown.enter="selectFirstFrom" />
-              <ul v-if="fromSuggestions.length" class="suggestions">
-                <li v-for="s in fromSuggestions" :key="s.lat + s.lng" class="suggestion" @click="selectFrom(s)">{{ s.name }}</li>
-              </ul>
+        <!-- ── TAB: TRIP ──────────────────────────────────────────── -->
+        <template v-if="activeTab === 'trip'">
+
+          <!-- Trip setup -->
+          <section class="drawer-section" v-if="!routeLoaded">
+            <div class="section-label">{{ t('planTrip') }}</div>
+
+            <div class="input-group">
+              <label class="input-label">{{ t('fromLabel') }}</label>
+              <div class="autocomplete">
+                <input class="text-input" v-model="fromQuery" :placeholder="t('fromPlaceholder')"
+                  @input="onFromInput" @keydown.enter="selectFirstFrom" />
+                <ul v-if="fromSuggestions.length" class="suggestions">
+                  <li v-for="s in fromSuggestions" :key="s.lat + s.lng" class="suggestion" @click="selectFrom(s)">{{ s.name }}</li>
+                </ul>
+              </div>
+              <span v-if="fromPlace" class="resolved">✓ {{ fromPlace.name }}</span>
             </div>
-            <span v-if="fromPlace" class="resolved">✓ {{ fromPlace.name }}</span>
-          </div>
 
-          <div class="input-group">
-            <label class="input-label">{{ t('toLabel') }}</label>
-            <div class="autocomplete">
-              <input class="text-input" v-model="toQuery" :placeholder="t('toPlaceholder')"
-                @input="onToInput" @keydown.enter="selectFirstTo" />
-              <ul v-if="toSuggestions.length" class="suggestions">
-                <li v-for="s in toSuggestions" :key="s.lat + s.lng" class="suggestion" @click="selectTo(s)">{{ s.name }}</li>
-              </ul>
+            <div class="input-group">
+              <label class="input-label">{{ t('toLabel') }}</label>
+              <div class="autocomplete">
+                <input class="text-input" v-model="toQuery" :placeholder="t('toPlaceholder')"
+                  @input="onToInput" @keydown.enter="selectFirstTo" />
+                <ul v-if="toSuggestions.length" class="suggestions">
+                  <li v-for="s in toSuggestions" :key="s.lat + s.lng" class="suggestion" @click="selectTo(s)">{{ s.name }}</li>
+                </ul>
+              </div>
+              <span v-if="toPlace" class="resolved">✓ {{ toPlace.name }}</span>
             </div>
-            <span v-if="toPlace" class="resolved">✓ {{ toPlace.name }}</span>
-          </div>
 
-          <button class="btn btn--primary" :disabled="!fromPlace || !toPlace || routeLoading" @click="startTrip">
-            {{ routeLoading ? t('buildingRoute') : t('startTrip') }}
-          </button>
-          <p v-if="routeError" class="error-text">{{ routeError }}</p>
-        </section>
+            <button class="btn btn--primary" :disabled="!fromPlace || !toPlace || routeLoading" @click="startTrip">
+              {{ routeLoading ? t('buildingRoute') : t('startTrip') }}
+            </button>
+            <p v-if="routeError" class="error-text">{{ routeError }}</p>
+          </section>
 
-        <!-- Pre-fetching towns -->
-        <section class="drawer-section" v-if="routeLoaded && prefetching">
-          <div class="section-label">{{ t('preloadingTowns') }}</div>
-          <div class="mini-progress">
-            <div class="mini-progress__bar" :style="{ width: prefetchProgress + '%' }"></div>
-          </div>
-          <p class="meta-text">{{ prefetchProgress }}% · {{ prefetchElapsed }} s — <template v-if="prefetchCurrentTown">{{ t('preloadingWikiFor') }} {{ prefetchCurrentTown }}</template><template v-else>{{ t('queryingMapData') }}</template></p>
-        </section>
-
-        <!-- Active trip -->
-        <section class="drawer-section" v-if="routeLoaded && !prefetching">
-          <div class="section-label">{{ t('activeTrip') }}</div>
-          <div class="route-banner">
-            <span>{{ origin?.name }}</span>
-            <span class="route-arrow">→</span>
-            <span>{{ destination?.name }}</span>
-          </div>
-          <p class="meta-text">{{ formatKm(totalDistance) }} {{ t('total') }}</p>
-          <button class="btn btn--small" @click="createNewTrip">{{ t('newTrip') }}</button>
-        </section>
-
-        <!-- GPS -->
-        <section class="drawer-section" v-if="routeLoaded && !prefetching">
-          <div class="section-label">{{ t('gps') }}</div>
-          <button class="btn" :class="{ active: watching }" @click="toggleGps">
-            {{ watching ? t('stopGps') : t('startGps') }}
-          </button>
-          <p v-if="position" class="meta-text">
-            {{ position.lat.toFixed(5) }}, {{ position.lng.toFixed(5) }}
-            <span v-if="position.speed != null"> · {{ formatSpeed(position.speed) }}</span>
-          </p>
-          <p v-if="geoError" class="error-text">{{ geoError }}</p>
-        </section>
-
-        <!-- Language -->
-        <section class="drawer-section">
-          <div class="section-label">{{ t('language') }}</div>
-          <select class="text-input lang-select" v-model="lang">
-            <option value="en">English</option>
-            <option value="fr">Français</option>
-          </select>
-        </section>
-
-        <!-- Nearby city min. display time -->
-        <section class="drawer-section">
-          <div class="section-label">{{ t('nearbyMinTime') }}</div>
-          <select class="text-input lang-select" v-model.number="nearbyMinDuration">
-            <option :value="0">{{ t('displayRefreshOff') }}</option>
-            <option :value="30">{{ t('displayRefreshQuick') }}</option>
-            <option :value="60">{{ t('displayRefreshNormal') }}</option>
-            <option :value="120">{{ t('displayRefreshRelaxed') }}</option>
-            <option :value="300">{{ t('displayRefreshSlow') }}</option>
-          </select>
-        </section>
-
-        <!-- Nearby place-type filter -->
-        <section class="drawer-section">
-          <div class="section-label">{{ t('minPlaceSize') }}</div>
-          <select class="text-input lang-select" v-model="minPlaceType">
-            <option value="all">{{ t('placeFilterAll') }}</option>
-            <option value="town">{{ t('placeFilterTown') }}</option>
-            <option value="city">{{ t('placeFilterCity') }}</option>
-          </select>
-        </section>
-
-        <!-- Distance units -->
-        <section class="drawer-section">
-          <div class="section-label">{{ t('distanceUnits') }}</div>
-          <select class="text-input lang-select" v-model="distanceUnit">
-            <option value="metric">{{ t('distanceMetric') }}</option>
-            <option value="imperial">{{ t('distanceImperial') }}</option>
-          </select>
-        </section>
-
-        <!-- Cache mode -->
-        <section class="drawer-section">
-          <div class="section-label">{{ t('cacheMode') }}</div>
-          <select class="text-input lang-select" v-model="cacheMode">
-            <option value="none">{{ t('cacheModeNone') }}</option>
-            <option value="balanced">{{ t('cacheModeBalanced') }}</option>
-            <option value="offline">{{ t('cacheModeOffline') }}</option>
-          </select>
-        </section>
-
-        <!-- Town info text size -->
-        <section class="drawer-section">
-          <div class="section-label">{{ t('textSize') }}</div>
-          <div class="size-control">
-            <span class="size-a">A</span>
-            <div class="size-track">
-              <div class="size-bar" :style="{ width: ((townFontScale - 0.8) / 1.2 * 100) + '%' }"></div>
-              <input type="range" class="size-range" v-model.number="townFontScale" min="0.8" max="2.0" step="0.1" />
+          <!-- Pre-fetching towns -->
+          <section class="drawer-section" v-if="routeLoaded && prefetching">
+            <div class="section-label">{{ t('preloadingTowns') }}</div>
+            <div class="mini-progress">
+              <div class="mini-progress__bar" :style="{ width: prefetchProgress + '%' }"></div>
             </div>
-            <span class="size-a size-a--lg">A</span>
-          </div>
-          <div class="size-preview">{{ displayedNearest?.name ?? 'Lyon' }}</div>
-        </section>
+            <p class="meta-text">{{ prefetchProgress }}% · {{ prefetchElapsed }} s — <template v-if="prefetchCurrentTown">{{ t('preloadingWikiFor') }} {{ prefetchCurrentTown }}</template><template v-else>{{ t('queryingMapData') }}</template></p>
+          </section>
 
-        <!-- Vehicle icon -->
-        <section class="drawer-section">
-          <div class="section-label">{{ t('vehicleIcon') }}</div>
-          <div class="icon-picker">
-            <button
-              v-for="ic in vehicleIcons"
-              :key="ic.value"
-              class="icon-pick-btn"
-              :class="{ active: vehicleIcon === ic.value }"
-              @click="vehicleIcon = ic.value"
-              :title="ic.label"
-            >{{ ic.value }}</button>
-          </div>
-        </section>
+          <!-- Active trip -->
+          <section class="drawer-section" v-if="routeLoaded && !prefetching">
+            <div class="section-label">{{ t('activeTrip') }}</div>
+            <div class="route-banner">
+              <span>{{ origin?.name }}</span>
+              <span class="route-arrow">→</span>
+              <span>{{ destination?.name }}</span>
+            </div>
+            <p class="meta-text">{{ formatKm(totalDistance) }} {{ t('total') }}</p>
+            <button class="btn btn--small" @click="createNewTrip">{{ t('newTrip') }}</button>
+          </section>
 
-        <!-- Voice: read description aloud -->
-        <section class="drawer-section">
-          <div class="section-label">{{ t('ttsReadDescription') }}</div>
-          <select class="text-input lang-select" v-model="ttsReadDescription">
-            <option :value="false">{{ t('ttsOff') }}</option>
-            <option :value="true">{{ t('ttsOn') }}</option>
-          </select>
-        </section>
+          <!-- GPS -->
+          <section class="drawer-section" v-if="routeLoaded && !prefetching">
+            <div class="section-label">{{ t('gps') }}</div>
+            <button class="btn" :class="{ active: watching }" @click="toggleGps">
+              {{ watching ? t('stopGps') : t('startGps') }}
+            </button>
+            <p v-if="position" class="meta-text">
+              {{ position.lat.toFixed(5) }}, {{ position.lng.toFixed(5) }}
+              <span v-if="position.speed != null"> · {{ formatSpeed(position.speed) }}</span>
+            </p>
+            <p v-if="geoError" class="error-text">{{ geoError }}</p>
+          </section>
+
+          <!-- Cache mode -->
+          <section class="drawer-section">
+            <div class="section-label">{{ t('cacheMode') }}</div>
+            <select class="text-input lang-select" v-model="cacheMode">
+              <option value="none">{{ t('cacheModeNone') }}</option>
+              <option value="balanced">{{ t('cacheModeBalanced') }}</option>
+              <option value="offline">{{ t('cacheModeOffline') }}</option>
+            </select>
+          </section>
+
+        </template>
+
+        <!-- ── TAB: DISPLAY ───────────────────────────────────────── -->
+        <template v-if="activeTab === 'display'">
+
+          <!-- Language -->
+          <section class="drawer-section">
+            <div class="section-label">{{ t('language') }}</div>
+            <select class="text-input lang-select" v-model="lang">
+              <option value="en">English</option>
+              <option value="fr">Français</option>
+            </select>
+          </section>
+
+          <!-- Theme -->
+          <section class="drawer-section">
+            <div class="section-label">{{ t('theme') }}</div>
+            <select class="text-input lang-select" v-model="themeValue">
+              <option value="light">{{ t('themeLight') }}</option>
+              <option value="dark">{{ t('themeDark') }}</option>
+            </select>
+          </section>
+
+          <!-- Distance units -->
+          <section class="drawer-section">
+            <div class="section-label">{{ t('distanceUnits') }}</div>
+            <select class="text-input lang-select" v-model="distanceUnit">
+              <option value="metric">{{ t('distanceMetric') }}</option>
+              <option value="imperial">{{ t('distanceImperial') }}</option>
+            </select>
+          </section>
+
+          <!-- Town info text size -->
+          <section class="drawer-section">
+            <div class="section-label">{{ t('textSize') }}</div>
+            <div class="size-control">
+              <span class="size-a">A</span>
+              <div class="size-track">
+                <div class="size-bar" :style="{ width: ((townFontScale - 0.8) / 1.2 * 100) + '%' }"></div>
+                <input type="range" class="size-range" v-model.number="townFontScale" min="0.8" max="2.0" step="0.1" />
+              </div>
+              <span class="size-a size-a--lg">A</span>
+            </div>
+            <div class="size-preview">{{ displayedNearest?.name ?? 'Lyon' }}</div>
+          </section>
+
+          <!-- Vehicle icon -->
+          <section class="drawer-section">
+            <div class="section-label">{{ t('vehicleIcon') }}</div>
+            <div class="icon-picker">
+              <button
+                v-for="ic in vehicleIcons"
+                :key="ic.value"
+                class="icon-pick-btn"
+                :class="{ active: vehicleIcon === ic.value }"
+                @click="vehicleIcon = ic.value"
+                :title="ic.label"
+              >{{ ic.value }}</button>
+            </div>
+          </section>
+
+          <!-- Nearby place-type filter -->
+          <section class="drawer-section">
+            <div class="section-label">{{ t('minPlaceSize') }}</div>
+            <select class="text-input lang-select" v-model="minPlaceType">
+              <option value="all">{{ t('placeFilterAll') }}</option>
+              <option value="town">{{ t('placeFilterTown') }}</option>
+              <option value="city">{{ t('placeFilterCity') }}</option>
+            </select>
+          </section>
+
+          <!-- Nearby city min. display time -->
+          <section class="drawer-section">
+            <div class="section-label">{{ t('nearbyMinTime') }}</div>
+            <select class="text-input lang-select" v-model.number="nearbyMinDuration">
+              <option :value="0">{{ t('displayRefreshOff') }}</option>
+              <option :value="30">{{ t('displayRefreshQuick') }}</option>
+              <option :value="60">{{ t('displayRefreshNormal') }}</option>
+              <option :value="120">{{ t('displayRefreshRelaxed') }}</option>
+              <option :value="300">{{ t('displayRefreshSlow') }}</option>
+            </select>
+          </section>
+
+        </template>
+
+        <!-- ── TAB: AUDIO ─────────────────────────────────────────── -->
+        <template v-if="activeTab === 'audio'">
+
+          <!-- Voice on/off -->
+          <section class="drawer-section">
+            <div class="section-label">{{ t('ttsVoice') }}</div>
+            <select class="text-input lang-select" v-model="ttsEnabled">
+              <option :value="false">{{ t('ttsOff') }}</option>
+              <option :value="true">{{ t('ttsOn') }}</option>
+            </select>
+          </section>
+
+          <!-- Read description aloud -->
+          <section class="drawer-section">
+            <div class="section-label">{{ t('ttsReadDescription') }}</div>
+            <select class="text-input lang-select" v-model="ttsReadDescription">
+              <option :value="false">{{ t('ttsOff') }}</option>
+              <option :value="true">{{ t('ttsOn') }}</option>
+            </select>
+          </section>
+
+        </template>
 
       </div>
     </Transition>
@@ -385,6 +417,10 @@ const appVersion = __APP_VERSION__
 
 // ── Theme ──────────────────────────────────────────────────────────────
 const { isDark, toggle: toggleTheme } = useTheme()
+const themeValue = computed({
+  get: () => isDark.value ? 'dark' : 'light',
+  set: (v) => { if ((v === 'dark') !== isDark.value) toggleTheme() }
+})
 
 // ── Locale ─────────────────────────────────────────────────────────────
 const { lang, t } = useLocale()
@@ -393,6 +429,7 @@ const { lang, t } = useLocale()
 const menuOpen     = ref(false)
 const settingsOpen = ref(false)
 const aboutOpen    = ref(false)
+const activeTab    = ref('trip')
 
 // ── Geolocation ────────────────────────────────────────────────────────
 const { position, error: geoError, watching, start: startGps, stop: stopGps } = useGeolocation()
@@ -1665,6 +1702,33 @@ function sideArrow(s) {
 }
 .icon-pick-btn:hover { border-color: var(--accent); }
 .icon-pick-btn.active { border-color: var(--accent); background: var(--bg-panel); }
+
+/* ── Settings tabs ────────────────────────────────────────────────── */
+.drawer-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  margin: 0 -1rem 0.25rem;
+  padding: 0 1rem;
+  flex-shrink: 0;
+}
+.drawer-tab {
+  flex: 1;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 0.55rem 0.5rem;
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  cursor: pointer;
+  margin-bottom: -1px;
+  transition: color 0.15s, border-color 0.15s;
+}
+.drawer-tab:hover { color: var(--text-muted); }
+.drawer-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
 
 /* ── Drawer slide transition ──────────────────────────────────────── */
 .drawer-enter-active,

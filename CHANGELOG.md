@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.4.6] — 2026-05-17
+
+### Changed
+- **Settings drawer reorganised into three tabs** — *Trip* (plan trip, GPS, cache mode), *Display* (language, theme, units, text size, vehicle icon, place filter, display duration), and *Audio* (voice on/off, read description). The drawer no longer requires scrolling through unrelated sections to find a setting.
+- **Theme and TTS controls removed from the hamburger menu** and relocated into their respective settings tabs. The menu now contains only *Settings* and *About*, making it a pure navigation tool rather than a mix of navigation and preferences.
+
+---
+
 ## [1.4.5] — 2026-05-16
 
 ### Fixed
