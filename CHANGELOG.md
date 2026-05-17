@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.4.7] — 2026-05-17
+
+### Added
+- **Demo mode** — hidden easter egg for simulating a drive along a planned route without GPS.
+- **Map follow zoom** — new "Map follow zoom" setting in the Display tab controls whether the map tracks the vehicle while moving and at what zoom level. Default is *Full route · no follow* (existing behaviour: map stays fitted to show the entire planned route). Seven levels are available from *Region (~300 km)* down to *Very close (~5 km)*. Applies to both real GPS tracking and demo mode; switching to a zoom level makes the map pan smoothly to the vehicle on every position update.
+
+---
+
 ## [1.4.6] — 2026-05-17
 
 ### Changed

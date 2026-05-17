@@ -186,6 +186,7 @@
           <button class="drawer-tab" :class="{ active: activeTab === 'trip' }" @click="activeTab = 'trip'">{{ t('tabTrip') }}</button>
           <button class="drawer-tab" :class="{ active: activeTab === 'display' }" @click="activeTab = 'display'">{{ t('tabDisplay') }}</button>
           <button class="drawer-tab" :class="{ active: activeTab === 'audio' }" @click="activeTab = 'audio'">{{ t('tabAudio') }}</button>
+          <button class="drawer-tab" :class="{ active: activeTab === 'advanced' }" @click="onAdvancedTabTap">{{ t('tabAdvanced') }}</button>
         </div>
 
         <!-- ── TAB: TRIP ──────────────────────────────────────────── -->
@@ -246,8 +247,8 @@
             <button class="btn btn--small" @click="createNewTrip">{{ t('newTrip') }}</button>
           </section>
 
-          <!-- GPS -->
-          <section class="drawer-section" v-if="routeLoaded && !prefetching">
+          <!-- GPS (hidden when demo mode is active) -->
+          <section class="drawer-section" v-if="routeLoaded && !prefetching && !demoEnabled">
             <div class="section-label">{{ t('gps') }}</div>
             <button class="btn" :class="{ active: watching }" @click="toggleGps">
               {{ watching ? t('stopGps') : t('startGps') }}
@@ -257,6 +258,33 @@
               <span v-if="position.speed != null"> · {{ formatSpeed(position.speed) }}</span>
             </p>
             <p v-if="geoError" class="error-text">{{ geoError }}</p>
+          </section>
+
+          <!-- Demo controls (visible when demo mode is enabled and route is ready) -->
+          <section class="drawer-section" v-if="routeLoaded && !prefetching && demoEnabled">
+            <div class="section-label">{{ t('demoSection') }}</div>
+            <div class="demo-speed-row">
+              <span class="demo-speed-label">{{ t('demoSpeedLabel') }}</span>
+              <span class="demo-speed-val">{{ demoSpeed }} km/h</span>
+            </div>
+            <input type="range" class="demo-range" v-model.number="demoSpeed"
+              min="20" max="5000" step="50" />
+            <div class="demo-controls">
+              <template v-if="demoState === 'idle'">
+                <button class="btn btn--primary" :disabled="demoLoading" @click="startDemoMode">
+                  {{ demoLoading ? t('demoLoadingRoute') : t('demoStart') }}
+                </button>
+              </template>
+              <template v-else-if="demoState === 'running'">
+                <button class="btn" @click="pauseDemo">{{ t('demoPause') }}</button>
+                <button class="btn" @click="stopDemoMode">{{ t('demoStop') }}</button>
+              </template>
+              <template v-else-if="demoState === 'paused'">
+                <button class="btn btn--primary" @click="startDemo">{{ t('demoResume') }}</button>
+                <button class="btn" @click="stopDemoMode">{{ t('demoStop') }}</button>
+              </template>
+            </div>
+            <p v-if="demoError" class="error-text">{{ demoError }}</p>
           </section>
 
           <!-- Cache mode -->
@@ -330,6 +358,21 @@
             </div>
           </section>
 
+          <!-- Map follow zoom -->
+          <section class="drawer-section">
+            <div class="section-label">{{ t('mapFollowZoom') }}</div>
+            <select class="text-input lang-select" v-model="mapFollowZoom">
+              <option value="overview">{{ t('mapZoomOverview') }}</option>
+              <option value="9">{{ t('mapZoom9') }}</option>
+              <option value="10">{{ t('mapZoom10') }}</option>
+              <option value="11">{{ t('mapZoom11') }}</option>
+              <option value="12">{{ t('mapZoom12') }}</option>
+              <option value="13">{{ t('mapZoom13') }}</option>
+              <option value="14">{{ t('mapZoom14') }}</option>
+              <option value="15">{{ t('mapZoom15') }}</option>
+            </select>
+          </section>
+
           <!-- Nearby place-type filter -->
           <section class="drawer-section">
             <div class="section-label">{{ t('minPlaceSize') }}</div>
@@ -377,7 +420,23 @@
 
         </template>
 
+        <!-- ── TAB: ADVANCED ─────────────────────────────────────── -->
+        <template v-if="activeTab === 'advanced'">
+          <section class="drawer-section" v-if="demoUnlocked">
+            <div class="section-label">{{ t('demoSection') }}</div>
+            <label class="toggle-label">
+              <input type="checkbox" v-model="demoEnabled" />
+              {{ t('demoModeEnable') }}
+            </label>
+          </section>
+        </template>
+
       </div>
+    </Transition>
+
+    <!-- ── DEMO UNLOCKED TOAST ───────────────────────────────────────── -->
+    <Transition name="fade">
+      <div v-if="showDemoUnlockedToast" class="demo-toast">{{ t('demoUnlockedMsg') }}</div>
     </Transition>
 
     <!-- ── ABOUT MODAL ────────────────────────────────────────────── -->
@@ -409,6 +468,7 @@ import { useNearbyTowns } from './composables/useNearbyTowns.js'
 import { useTTS } from './composables/useTTS.js'
 import { useSession } from './composables/useSession.js'
 import { useTrips } from './composables/useTrips.js'
+import { useDemoMode } from './composables/useDemoMode.js'
 import { geocodeSuggestions } from './composables/useGeocoding.js'
 import TripTabs from './components/TripTabs.vue'
 
@@ -433,6 +493,69 @@ const activeTab    = ref('trip')
 
 // ── Geolocation ────────────────────────────────────────────────────────
 const { position, error: geoError, watching, start: startGps, stop: stopGps } = useGeolocation()
+
+// ── Demo mode ───────────────────────────────────────────────────────────
+const {
+  demoEnabled, demoSpeed, demoState, demoPosition, demoError, demoLoading,
+  loadDemoRoute, startDemo, pauseDemo, stopDemo
+} = useDemoMode()
+
+const mapFollowZoom = ref(localStorage.getItem('mapFollowZoom') || 'overview')
+watch(mapFollowZoom, v => localStorage.setItem('mapFollowZoom', v))
+
+const demoUnlocked        = ref(localStorage.getItem('demoUnlocked') === 'true')
+const showDemoUnlockedToast = ref(false)
+let advancedTapCount = 0
+let advancedTapTimer = null
+
+function onAdvancedTabTap() {
+  activeTab.value = 'advanced'
+  advancedTapCount++
+  clearTimeout(advancedTapTimer)
+  if (advancedTapCount >= 7) {
+    advancedTapCount = 0
+    if (!demoUnlocked.value) {
+      demoUnlocked.value = true
+      localStorage.setItem('demoUnlocked', 'true')
+      showDemoUnlockedToast.value = true
+      setTimeout(() => { showDemoUnlockedToast.value = false }, 3000)
+    }
+  } else {
+    advancedTapTimer = setTimeout(() => { advancedTapCount = 0 }, 3000)
+  }
+}
+
+watch(demoEnabled, (v) => {
+  if (!v) {
+    stopDemo()
+    demoUnlocked.value = false
+    localStorage.removeItem('demoUnlocked')
+  }
+})
+
+async function startDemoMode() {
+  tripStartTime.value     = null
+  tripStartDistance.value = null
+  avgSpeedMs.value        = null
+  actualPath.value        = []
+  if (actualPolyline && map) { map.removeLayer(actualPolyline); actualPolyline = null }
+  const ok = await loadDemoRoute(origin.value, destination.value)
+  if (ok) {
+    if (map) {
+      if (mapFollowZoom.value === 'overview') fitBoundsToRoute()
+      else map.setView([origin.value.lat, origin.value.lng], parseInt(mapFollowZoom.value))
+    }
+    startDemo()
+  }
+}
+
+function stopDemoMode() {
+  stopDemo()
+  tripStartTime.value     = null
+  tripStartDistance.value = null
+  avgSpeedMs.value        = null
+  fitBoundsToRoute()
+}
 
 // ── iOS auto-lock hint ─────────────────────────────────────────────────
 const isIOS = /iP(hone|ad|od)/i.test(navigator.userAgent)
@@ -542,7 +665,12 @@ const progressFillStyle = computed(() => {
 })
 
 
+const effectivePosition = computed(() =>
+  demoState.value !== 'idle' && demoPosition.value ? demoPosition.value : position.value
+)
+
 const gpsStatusClass = computed(() => {
+  if (demoState.value === 'running')      return 'live'
   if (watching.value && position.value)   return 'live'
   if (!watching.value && !position.value) return 'off'
   return 'stale'
@@ -920,13 +1048,13 @@ watch(routeLoaded, (loaded) => {
   if (loaded && !routePolyline) drawPlannedRoute()
 })
 
-// ── GPS → update everything ────────────────────────────────────────────
-watch(position, async (pos) => {
+// ── Position → update everything (real GPS or demo) ───────────────────
+watch(effectivePosition, async (pos) => {
   if (!pos) return
+  const isDemo = demoState.value !== 'idle'
 
-  // On first fix after a session restore: draw a straight line from the last
-  // saved position to the current one, bridging the gap while the app was closed.
-  if (isFirstPositionAfterRestore) {
+  // On first real GPS fix after a session restore: bridge the gap.
+  if (!isDemo && isFirstPositionAfterRestore) {
     if (lastSavedPosition && actualPolyline) {
       actualPolyline.addLatLng([lastSavedPosition.lat, lastSavedPosition.lng])
       actualPath.value.push([lastSavedPosition.lat, lastSavedPosition.lng])
@@ -935,6 +1063,9 @@ watch(position, async (pos) => {
   }
 
   updateMap(pos.lat, pos.lng)
+  if (map && mapFollowZoom.value !== 'overview' && (isDemo || watching.value)) {
+    map.setView([pos.lat, pos.lng], parseInt(mapFollowZoom.value), { animate: true, duration: isDemo ? 0.1 : 1 })
+  }
   if (routeLoaded.value) {
     updatePosition(pos.lat, pos.lng)
     if (minPlaceType.value === 'city') {
@@ -944,7 +1075,6 @@ watch(position, async (pos) => {
     }
   }
 
-  // Average speed: initialise on first fix, then update each fix
   if (!tripStartTime.value) {
     tripStartTime.value     = Date.now()
     tripStartDistance.value = distanceDone.value ?? 0
@@ -956,7 +1086,7 @@ watch(position, async (pos) => {
     }
   }
 
-  scheduleSave()
+  if (!isDemo) scheduleSave()
 })
 
 // ── Geocoding / autocomplete ───────────────────────────────────────────
@@ -991,7 +1121,7 @@ async function startTrip() {
       const samples = sampleRoutePoints(10000)
       await prefetchForRoute(samples, CORRIDOR_RADII[cacheMode.value])
     }
-    startGps()
+    if (!demoEnabled.value) startGps()
     settingsOpen.value = false
     persistSession()
   }
@@ -1825,6 +1955,47 @@ function sideArrow(s) {
 .ios-hint-leave-active { transition: max-height 0.3s ease, opacity 0.3s ease; max-height: 48px; }
 .ios-hint-enter-from,
 .ios-hint-leave-to     { max-height: 0; opacity: 0; }
+
+/* ── Demo mode ────────────────────────────────────────────────────── */
+.demo-speed-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 0.3rem;
+}
+.demo-speed-label { font-size: 0.8rem; color: var(--text-muted); }
+.demo-speed-val   { font-size: 0.9rem; font-weight: 700; color: var(--accent); }
+.demo-range {
+  width: 100%;
+  accent-color: var(--accent);
+  margin-bottom: 0.75rem;
+  cursor: pointer;
+}
+.demo-controls { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--text);
+  cursor: pointer;
+}
+.demo-toast {
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--accent);
+  color: white;
+  padding: 0.5rem 1.25rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  z-index: 2000;
+  pointer-events: none;
+  white-space: nowrap;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
 
 /* ── Portrait layout ──────────────────────────────────────────────── */
 @media (orientation: portrait) {
