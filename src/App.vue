@@ -558,7 +558,12 @@ function stopDemoMode() {
   tripStartTime.value     = null
   tripStartDistance.value = null
   avgSpeedMs.value        = null
-  fitBoundsToRoute()
+  if (map && position.value) {
+    const zoom = mapFollowZoom.value === 'overview' ? 13 : parseInt(mapFollowZoom.value)
+    map.setView([position.value.lat, position.value.lng], zoom, { animate: true })
+  } else {
+    fitBoundsToRoute()
+  }
 }
 
 // ── iOS auto-lock hint ─────────────────────────────────────────────────

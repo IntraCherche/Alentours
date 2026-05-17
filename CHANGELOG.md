@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.11] — 2026-05-17
+
+### Fixed
+- **Demo stop returns to real GPS location** — pressing *Stop* now unconditionally centers the map on the current GPS position (zoom 13 when the map-follow mode is set to *Overview*). Previously the map stayed at the demo's last town or showed the route overview, depending on settings. Pause still freezes the map at the demo's current position. A demo that ends naturally (reaches destination) stays at the destination until *Stop* is pressed, at which point the real GPS location takes over.
+
+---
+
 ## [1.4.10] — 2026-05-17
 
 ### Fixed
