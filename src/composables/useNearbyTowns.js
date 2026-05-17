@@ -176,7 +176,7 @@ export function useNearbyTowns() {
       // Let Vue paint the 100% state before the panel disappears
       await new Promise(r => setTimeout(r, 600))
     } catch (err) {
-      error.value = err.message
+      error.value = 'Network error'
     } finally {
       clearInterval(fakeInterval)
       clearInterval(townCycler)
@@ -315,7 +315,7 @@ export function useNearbyTowns() {
       }
       towns.value = list
     } catch (err) {
-      error.value = err.message
+      error.value = 'Network error'
     } finally {
       loading.value = false
     }
@@ -453,7 +453,7 @@ export function useNearbyTowns() {
       }
       towns.value = list
     } catch (err) {
-      error.value = err.message
+      error.value = 'Network error'
     } finally {
       loading.value = false
     }
@@ -464,6 +464,30 @@ export function useNearbyTowns() {
     prefetchForRoute, fetchNearbyTowns, fetchNearestCity, resetThrottle,
     restoreCache, clearCache, exportTownCache, importTownCache
   }
+}
+
+// ── Sanitization helpers ─────────────────────────────────────────────
+
+const WIKI_IMG_HOSTS = ['upload.wikimedia.org', 'commons.wikimedia.org']
+const QID_RE = /^Q\d+$/
+
+function safeStr(val, maxLen = 5000) {
+  return typeof val === 'string' ? val.slice(0, maxLen) : null
+}
+
+function safeWikiUrl(val) {
+  if (typeof val !== 'string') return null
+  try {
+    const normalized = val.startsWith('http:') ? 'https:' + val.slice(5) : val
+    const url = new URL(normalized)
+    if (url.protocol !== 'https:') return null
+    if (!WIKI_IMG_HOSTS.some(h => url.hostname === h || url.hostname.endsWith('.' + h))) return null
+    return url.href
+  } catch { return null }
+}
+
+function safeQid(val) {
+  return typeof val === 'string' && QID_RE.test(val) ? val : null
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────
@@ -516,10 +540,10 @@ async function fetchWikiSummaryBatch(towns, language) {
     const town = nameToTown.get(queryName)
     if (!town) continue
     town.wiki = {
-      title:     page.title,
-      extract:   page.extract || null,
-      thumbnail: page.thumbnail?.source ?? null,
-      qid:       page.pageprops?.wikibase_item ?? null
+      title:     safeStr(page.title, 300),
+      extract:   safeStr(page.extract, 10000),
+      thumbnail: safeWikiUrl(page.thumbnail?.source),
+      qid:       safeQid(page.pageprops?.wikibase_item)
     }
   }
 
@@ -564,10 +588,10 @@ async function fetchWikiByCoords(town, lang) {
   if (!match) return
 
   town.wiki = {
-    title:     match.title,
-    extract:   match.extract || null,
-    thumbnail: match.thumbnail?.source ?? null,
-    qid:       match.pageprops?.wikibase_item ?? null
+    title:     safeStr(match.title, 300),
+    extract:   safeStr(match.extract, 10000),
+    thumbnail: safeWikiUrl(match.thumbnail?.source),
+    qid:       safeQid(match.pageprops?.wikibase_item)
   }
 }
 
@@ -655,18 +679,21 @@ SELECT DISTINCT ?city ?pop ?elevation ?alias ?demonym ?riverLabel ?depLabel ?dep
       mayor: null, mayorGender: null, image: null, coat: null
     }
     const r = results[qid]
-    if (row.pop) r.population = Math.round(parseFloat(row.pop.value))
-    if (row.elevation && !r.elevation) r.elevation = Math.round(parseFloat(row.elevation.value))
-    if (row.alias) { const a = row.alias.value; if (!r.aliases.includes(a)) r.aliases.push(a) }
-    if (row.demonym) { const d = row.demonym.value; if (!r.demonyms.includes(d)) r.demonyms.push(d) }
-    if (row.riverLabel) { const rv = row.riverLabel.value; if (!r.rivers.includes(rv)) r.rivers.push(rv) }
-    if (row.depLabel && !r.department) r.department = row.depLabel.value
-    if (row.depCode && !r.departmentCode) r.departmentCode = row.depCode.value
-    if (row.regLabel && !r.region) r.region = row.regLabel.value
-    if (row.mayorLabel && !r.mayor) r.mayor = row.mayorLabel.value
-    if (row.mayorSex && !r.mayorGender) r.mayorGender = row.mayorSex.value
-    if (row.image && !r.image) r.image = row.image.value
-    if (row.coat && !r.coat) r.coat = row.coat.value
+    if (row.pop) { const v = parseFloat(row.pop.value); if (Number.isFinite(v)) r.population = Math.round(v) }
+    if (row.elevation && !r.elevation) { const v = parseFloat(row.elevation.value); if (Number.isFinite(v)) r.elevation = Math.round(v) }
+    if (row.alias) { const a = safeStr(row.alias.value, 100); if (a && !r.aliases.includes(a)) r.aliases.push(a) }
+    if (row.demonym) { const d = safeStr(row.demonym.value, 100); if (d && !r.demonyms.includes(d)) r.demonyms.push(d) }
+    if (row.riverLabel) { const rv = safeStr(row.riverLabel.value, 100); if (rv && !r.rivers.includes(rv)) r.rivers.push(rv) }
+    if (row.depLabel && !r.department) r.department = safeStr(row.depLabel.value, 150)
+    if (row.depCode && !r.departmentCode) r.departmentCode = safeStr(row.depCode.value, 10)
+    if (row.regLabel && !r.region) r.region = safeStr(row.regLabel.value, 150)
+    if (row.mayorLabel && !r.mayor) r.mayor = safeStr(row.mayorLabel.value, 150)
+    if (row.mayorSex && !r.mayorGender) {
+      const g = row.mayorSex.value
+      if (g === 'male' || g === 'female' || g === 'other') r.mayorGender = g
+    }
+    if (row.image && !r.image) r.image = safeWikiUrl(row.image.value)
+    if (row.coat && !r.coat) r.coat = safeWikiUrl(row.coat.value)
   }
   for (const r of Object.values(results)) {
     r.nickname = pickNickname(r.aliases)

@@ -459,6 +459,17 @@
       </div>
     </Transition>
 
+    <!-- ── PRIVACY NOTICE ─────────────────────────────────────────── -->
+    <Transition name="fade">
+      <div v-if="privacyOpen" class="about-overlay privacy-overlay">
+        <div class="about-card privacy-card">
+          <div class="privacy-title">{{ t('privacyTitle') }}</div>
+          <p class="privacy-body">{{ t('privacyBody') }}</p>
+          <button class="btn btn--primary" @click="acceptPrivacy">{{ t('privacyAccept') }}</button>
+        </div>
+      </div>
+    </Transition>
+
   </div>
 </template>
 
@@ -494,6 +505,16 @@ const menuOpen     = ref(false)
 const settingsOpen = ref(false)
 const aboutOpen    = ref(false)
 const activeTab    = ref('trip')
+
+// ── Privacy notice ─────────────────────────────────────────────────────
+const privacyAccepted = ref(localStorage.getItem('privacy-accepted') === 'true')
+const privacyOpen     = ref(!privacyAccepted.value)
+
+function acceptPrivacy() {
+  privacyAccepted.value = true
+  privacyOpen.value = false
+  localStorage.setItem('privacy-accepted', 'true')
+}
 
 // ── Geolocation ────────────────────────────────────────────────────────
 const { position, error: geoError, watching, start: startGps, stop: stopGps } = useGeolocation()
@@ -1016,7 +1037,7 @@ function restoreFromSession() {
   fitBoundsToRoute()
 
   restoreCache()
-  startGps()
+  if (privacyAccepted.value) startGps()
   return true
 }
 
@@ -1135,7 +1156,7 @@ async function startTrip() {
       const samples = sampleRoutePoints(10000)
       await prefetchForRoute(samples, CORRIDOR_RADII[cacheMode.value])
     }
-    if (!demoEnabled.value) startGps()
+    if (!demoEnabled.value && privacyAccepted.value) startGps()
     // Brief pause so the user sees the active-trip state before the panel closes
     await new Promise(r => setTimeout(r, 800))
     settingsOpen.value = false
@@ -1238,7 +1259,7 @@ async function switchToTrip(id) {
   drawPlannedRoute()
   drawActualPath()
   fitBoundsToRoute()
-  startGps()
+  if (privacyAccepted.value) startGps()
 }
 
 function deleteTripById(id) {
@@ -1254,6 +1275,7 @@ function toggleGps() {
   if (watching.value) {
     stopGps()
   } else {
+    if (!privacyAccepted.value) { privacyOpen.value = true; return }
     tripStartTime.value     = null
     tripStartDistance.value = null
     avgSpeedMs.value        = null
@@ -1935,6 +1957,23 @@ function sideArrow(s) {
   color: var(--text-dim);
   letter-spacing: 0.06em;
   margin-top: 0.2rem;
+}
+
+/* ── Privacy notice ──────────────────────────────────────────────── */
+.privacy-overlay { z-index: 1003; }
+.privacy-card { max-width: 340px; align-items: flex-start; }
+.privacy-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 0.4rem;
+}
+.privacy-body {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  white-space: pre-line;
+  line-height: 1.55;
+  margin: 0 0 1rem;
 }
 
 /* ── Fade transition (About modal) ───────────────────────────────── */

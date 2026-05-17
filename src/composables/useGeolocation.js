@@ -8,6 +8,7 @@ export function useGeolocation() {
   let watchId = null
 
   function start() {
+    if (watchId !== null) return
     if (!navigator.geolocation) {
       error.value = 'Geolocation not supported by this browser.'
       return

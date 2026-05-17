@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.4.13] — 2026-05-17 🔒 Security audit
+
+This release is the result of a full security audit of the codebase. No critical exploits were found, but several hardening measures have been applied across the stack.
+
+### Security
+
+- **Content Security Policy** — a strict CSP `<meta>` tag is now present in `index.html`. It whitelists every external origin the app legitimately contacts (OSM tiles, Nominatim, Overpass, OSRM, Wikipedia, Wikidata) and blocks scripts, objects, frames, and images from any unlisted domain. This closes the most impactful injection surface.
+- **Privacy notice** — a first-launch modal (FR / EN) now informs the user that their approximate GPS position is shared with OpenStreetMap, Wikipedia / Wikidata, and OSRM. GPS cannot be started — automatically on session restore or manually via the *Start GPS* button — until the notice is acknowledged. Acceptance is persisted in `localStorage` so the modal appears only once.
+- **API response sanitization** — all data received from Wikipedia and Wikidata is now validated before entering the app:
+  - Text fields are type-checked and length-capped (`safeStr`).
+  - Image and coat-of-arms URLs are validated to `https://upload.wikimedia.org` or `https://commons.wikimedia.org`; bare `http://` URLs are upgraded to HTTPS (`safeWikiUrl`).
+  - Wikidata entity IDs (QIDs) are validated against `/^Q\d+$/` (`safeQid`).
+  - Numeric fields (`population`, `elevation`) are guarded by `Number.isFinite()`.
+  - The `mayorGender` field is now validated to one of `male | female | other`.
+- **Geolocation double-watch guard** — `useGeolocation.start()` now returns immediately if a watcher is already active, preventing duplicate GPS watchers that could drain battery and produce conflicting position updates.
+- **Error message sanitization** — raw `err.message` strings from failed network fetches are no longer forwarded to the UI (potential for partial server-response leakage). All three fetch error paths now show the generic message *"Network error"*.
+
+---
+
 ## [1.4.12] — 2026-05-17
 
 ### Fixed

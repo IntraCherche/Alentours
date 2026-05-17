@@ -30,6 +30,7 @@ Designed to be glanced at from the passenger seat or mounted on a motorhome scre
 - **Dark / light theme** and EN / FR language, both persisted
 - **Session persistence** — closing and reopening the app resumes the trip exactly where you left off (route, GPS path, position)
 - **PWA** — installable on Android and iOS (16.4+), OSM tiles and Wikipedia responses cached for offline use; on iOS a one-time banner reminds the user to disable Auto-Lock while driving
+- **Privacy notice** — a first-launch modal explains which external services receive the device's approximate location (OpenStreetMap, Wikipedia / Wikidata, OSRM); GPS is gated until the user acknowledges it
 
 ## Tech stack
 
@@ -63,6 +64,12 @@ npm run preview   # local preview of the production build
 ```
 
 The `base: './'` in `vite.config.js` makes the build relocatable (works on GitHub Pages or any subdirectory).
+
+## Security
+
+- **Content Security Policy** — a strict CSP `<meta>` tag whitelists every external origin (OSM, Nominatim, Overpass, OSRM, Wikipedia, Wikidata) and blocks everything else.
+- **API response validation** — all data from Wikipedia and Wikidata is type-checked, length-capped, and URL-validated before use.
+- **No secrets** — all APIs used are free and public; no API keys are present in the source.
 
 ## License
 
