@@ -3,7 +3,7 @@
 
 const DB_NAME    = 'alentours-wiki'
 const STORE_NAME = 'towns'
-const DB_VERSION = 1
+const DB_VERSION = 2
 
 let _dbPromise = null
 
@@ -22,7 +22,7 @@ function openDB() {
 }
 
 // Returns { [osmId]: wikiObj } for every id found in the cache.
-export async function wikiCacheGetMany(ids) {
+export async function wikiCacheGetMany(ids, lang) {
   if (!ids.length) return {}
   const db = await openDB()
   return new Promise(resolve => {
@@ -31,9 +31,10 @@ export async function wikiCacheGetMany(ids) {
     const result = {}
     let remaining = ids.length
     for (const id of ids) {
-      const req = store.get(id)
+      const key = `${id}_${lang}`
+      const req = store.get(key)
       req.onsuccess = () => {
-        if (req.result) result[req.result.id] = req.result.wiki
+        if (req.result) result[id] = req.result.wiki
         if (--remaining === 0) resolve(result)
       }
       req.onerror = () => { if (--remaining === 0) resolve(result) }
@@ -42,13 +43,13 @@ export async function wikiCacheGetMany(ids) {
 }
 
 // Persists an array of { id, wiki } entries. Overwrites existing entries.
-export async function wikiCachePutMany(entries) {
+export async function wikiCachePutMany(entries, lang) {
   if (!entries.length) return
   const db = await openDB()
   return new Promise((resolve, reject) => {
     const tx    = db.transaction(STORE_NAME, 'readwrite')
     const store = tx.objectStore(STORE_NAME)
-    for (const entry of entries) store.put(entry)
+    for (const entry of entries) store.put({ id: `${entry.id}_${lang}`, wiki: entry.wiki })
     tx.oncomplete = () => resolve()
     tx.onerror    = e => reject(e.target.error)
   })

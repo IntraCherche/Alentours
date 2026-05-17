@@ -14,7 +14,7 @@ import { useLocale } from './useLocale.js'
 import { wikiCacheGetMany, wikiCachePutMany } from './useWikiCache.js'
 
 const OVERPASS_URL = 'https://overpass-api.de/api/interpreter'
-const CACHE_KEY    = 'motorhome-towns-cache'
+const cacheKey     = () => `motorhome-towns-cache-${lang.value}`
 
 const { lang } = useLocale()
 
@@ -99,7 +99,7 @@ export function useNearbyTowns() {
 
       // Load from persistent IDB cache — towns already known skip all network fetches
       let cachedWiki = {}
-      try { cachedWiki = await wikiCacheGetMany(uniqueList.map(t => t.id)) } catch {}
+      try { cachedWiki = await wikiCacheGetMany(uniqueList.map(t => t.id), lang.value) } catch {}
       const needsWiki = []
       for (const t of uniqueList) {
         if (cachedWiki[t.id]) t.wiki = cachedWiki[t.id]
@@ -122,7 +122,7 @@ export function useNearbyTowns() {
 
       // Persist newly enriched towns to the permanent IDB cache (full data, no truncation)
       try {
-        await wikiCachePutMany(needsWiki.filter(t => t.wiki).map(t => ({ id: t.id, wiki: t.wiki })))
+        await wikiCachePutMany(needsWiki.filter(t => t.wiki).map(t => ({ id: t.id, wiki: t.wiki })), lang.value)
       } catch {}
 
       // Store in memory
@@ -137,6 +137,7 @@ export function useNearbyTowns() {
         wiki: t.wiki ? {
           title:          t.wiki.title,
           extract:        includeExtract ? (t.wiki.extract?.slice(0, 500) ?? null) : null,
+          filteredExtract: t.wiki.filteredExtract ?? null,
           qid:            t.wiki.qid,
           thumbnail:      t.wiki.thumbnail,
           image:          t.wiki.image,
@@ -156,12 +157,12 @@ export function useNearbyTowns() {
       try {
         const payload = {}
         for (const [id, t] of Object.entries(townCache)) payload[id] = toSaveable(t, true)
-        localStorage.setItem(CACHE_KEY, JSON.stringify(payload))
+        localStorage.setItem(cacheKey(), JSON.stringify(payload))
       } catch {
         try {
           const payload = {}
           for (const [id, t] of Object.entries(townCache)) payload[id] = toSaveable(t, false)
-          localStorage.setItem(CACHE_KEY, JSON.stringify(payload))
+          localStorage.setItem(cacheKey(), JSON.stringify(payload))
         } catch {}
       }
 
@@ -181,7 +182,7 @@ export function useNearbyTowns() {
   // Restore cache from localStorage (e.g. page refresh mid-trip)
   function restoreCache() {
     try {
-      const saved = localStorage.getItem(CACHE_KEY)
+      const saved = localStorage.getItem(cacheKey())
       if (saved) townCache = JSON.parse(saved)
     } catch {}
   }
@@ -215,7 +216,7 @@ export function useNearbyTowns() {
         const needsWiki = cached.filter(t => !t.wiki || t.wiki.thumbnail === undefined)
         if (needsWiki.length) {
           let idbWiki = {}
-          try { idbWiki = await wikiCacheGetMany(needsWiki.map(t => t.id)) } catch {}
+          try { idbWiki = await wikiCacheGetMany(needsWiki.map(t => t.id), lang.value) } catch {}
           const stillMissing = []
           for (const t of needsWiki) {
             if (idbWiki[t.id]) {
@@ -230,7 +231,7 @@ export function useNearbyTowns() {
             await fetchWikiSummaryBatch(stillMissing, lang.value)
             await enrichWithWikidata(stillMissing, lang.value)
             try {
-              await wikiCachePutMany(stillMissing.filter(t => t.wiki).map(t => ({ id: t.id, wiki: t.wiki })))
+              await wikiCachePutMany(stillMissing.filter(t => t.wiki).map(t => ({ id: t.id, wiki: t.wiki })), lang.value)
             } catch {}
             for (const t of stillMissing) {
               if (t.wiki && townCache[t.id]) townCache[t.id].wiki = t.wiki
@@ -283,7 +284,7 @@ export function useNearbyTowns() {
         .sort((a, b) => a.distance - b.distance)
 
       let cachedWiki = {}
-      try { cachedWiki = await wikiCacheGetMany(list.map(t => t.id)) } catch {}
+      try { cachedWiki = await wikiCacheGetMany(list.map(t => t.id), lang.value) } catch {}
       const needsEnrich = []
       for (const t of list) {
         if (cachedWiki[t.id]) t.wiki = cachedWiki[t.id]
@@ -294,7 +295,7 @@ export function useNearbyTowns() {
         await fetchWikiSummaryBatch(needsEnrich, lang.value)
         await enrichWithWikidata(needsEnrich, lang.value)
         try {
-          await wikiCachePutMany(needsEnrich.filter(t => t.wiki).map(t => ({ id: t.id, wiki: t.wiki })))
+          await wikiCachePutMany(needsEnrich.filter(t => t.wiki).map(t => ({ id: t.id, wiki: t.wiki })), lang.value)
         } catch {}
       }
 
@@ -323,18 +324,18 @@ export function useNearbyTowns() {
 
   function clearCache() {
     townCache = {}
-    try { localStorage.removeItem(CACHE_KEY) } catch {}
+    try { localStorage.removeItem(cacheKey()) } catch {}
   }
 
   function exportTownCache() {
-    return localStorage.getItem(CACHE_KEY) ?? null
+    return localStorage.getItem(cacheKey()) ?? null
   }
 
   function importTownCache(raw) {
     if (raw) {
-      try { localStorage.setItem(CACHE_KEY, raw) } catch {}
+      try { localStorage.setItem(cacheKey(), raw) } catch {}
     } else {
-      localStorage.removeItem(CACHE_KEY)
+      localStorage.removeItem(cacheKey())
     }
     restoreCache()
   }
@@ -370,7 +371,7 @@ export function useNearbyTowns() {
         const needsWiki = cities.filter(t => !t.wiki || t.wiki.thumbnail === undefined)
         if (needsWiki.length) {
           let idbWiki = {}
-          try { idbWiki = await wikiCacheGetMany(needsWiki.map(t => t.id)) } catch {}
+          try { idbWiki = await wikiCacheGetMany(needsWiki.map(t => t.id), lang.value) } catch {}
           const stillMissing = []
           for (const t of needsWiki) {
             if (idbWiki[t.id]) { t.wiki = idbWiki[t.id]; if (townCache[t.id]) townCache[t.id].wiki = t.wiki }
@@ -379,7 +380,7 @@ export function useNearbyTowns() {
           if (stillMissing.length) {
             await fetchWikiSummaryBatch(stillMissing, lang.value)
             await enrichWithWikidata(stillMissing, lang.value)
-            try { await wikiCachePutMany(stillMissing.filter(t => t.wiki).map(t => ({ id: t.id, wiki: t.wiki }))) } catch {}
+            try { await wikiCachePutMany(stillMissing.filter(t => t.wiki).map(t => ({ id: t.id, wiki: t.wiki })), lang.value) } catch {}
             for (const t of stillMissing) { if (t.wiki && townCache[t.id]) townCache[t.id].wiki = t.wiki }
           }
         }
@@ -416,7 +417,7 @@ export function useNearbyTowns() {
       })).sort((a, b) => a.distance - b.distance)
 
       let cachedWiki = {}
-      try { cachedWiki = await wikiCacheGetMany(list.map(t => t.id)) } catch {}
+      try { cachedWiki = await wikiCacheGetMany(list.map(t => t.id), lang.value) } catch {}
       const needsEnrich = []
       for (const t of list) {
         if (cachedWiki[t.id]) t.wiki = cachedWiki[t.id]
@@ -425,7 +426,7 @@ export function useNearbyTowns() {
       if (needsEnrich.length) {
         await fetchWikiSummaryBatch(needsEnrich, lang.value)
         await enrichWithWikidata(needsEnrich, lang.value)
-        try { await wikiCachePutMany(needsEnrich.filter(t => t.wiki).map(t => ({ id: t.id, wiki: t.wiki }))) } catch {}
+        try { await wikiCachePutMany(needsEnrich.filter(t => t.wiki).map(t => ({ id: t.id, wiki: t.wiki })), lang.value) } catch {}
       }
 
       towns.value = list
@@ -464,7 +465,6 @@ async function fetchWikiSummaryBatch(towns, language) {
     action:      'query',
     prop:        'extracts|pageimages|pageprops',
     exintro:     '1',
-    exsentences: '2',
     explaintext: '1',
     piprop:      'thumbnail',
     pithumbsize: '400',
@@ -516,7 +516,6 @@ async function fetchWikiByCoords(town, lang) {
     action:      'query',
     prop:        'extracts|pageimages|pageprops',
     exintro:     '1',
-    exsentences: '2',
     explaintext: '1',
     piprop:      'thumbnail',
     pithumbsize: '400',
@@ -553,7 +552,12 @@ async function fetchWikiByCoords(town, lang) {
 // Batch Wikidata SPARQL enrichment for a list of towns (mutates town.wiki in place)
 async function enrichWithWikidata(townList, language, onProgress) {
   const withQid = townList.filter(t => t.wiki?.qid)
-  if (!withQid.length) return
+  if (!withQid.length) {
+    for (const t of townList) {
+      if (t.wiki) t.wiki.filteredExtract = pickExtractParagraph(t.wiki.extract, t.wiki)
+    }
+    return
+  }
 
   const batchSize = 15
   for (let i = 0; i < withQid.length; i += batchSize) {
@@ -566,6 +570,11 @@ async function enrichWithWikidata(townList, language, onProgress) {
       }
     } catch { /* non-fatal: Wikidata enrichment is best-effort */ }
     if (onProgress) onProgress((i + batchSize) / withQid.length)
+  }
+
+  // Compute once, after dept/region are known from Wikidata
+  for (const t of townList) {
+    if (t.wiki) t.wiki.filteredExtract = pickExtractParagraph(t.wiki.extract, t.wiki)
   }
 }
 
@@ -642,6 +651,29 @@ SELECT DISTINCT ?city ?pop ?elevation ?alias ?demonym ?riverLabel ?depLabel ?dep
     delete r.aliases
   }
   return results
+}
+
+// Walk paragraphs from last to first, skip commercial/boilerplate, return first hit.
+// Called once after Wikidata enrichment so dept/region are already known.
+function pickExtractParagraph(extract, wiki) {
+  if (!extract) return null
+  const dept   = wiki?.department?.toLowerCase() ?? ''
+  const region = wiki?.region?.toLowerCase()     ?? ''
+  const paragraphs = extract.split('\n').map(p => p.trim()).filter(Boolean)
+  for (let i = paragraphs.length - 1; i >= 0; i--) {
+    const p  = paragraphs[i]
+    const pl = p.toLowerCase()
+    if (/\bcommune\b|\bmunicipality\b|\bmunicipalité\b/.test(pl)) continue
+    if (dept   && pl.includes(dept))   continue
+    if (region && pl.includes(region)) continue
+    if (/\b(population|habitants?|inhabitants?|recensement|census)\b/.test(pl)) continue
+    if (/\bprix et classements?\b/.test(pl)) continue
+    if (/\bselon\b.{0,60}(lonely planet|magazine|journal|guide|classement)/.test(pl)) continue
+    if (/\bpar (le|la|un|une) (magazine|site d'actualité|guide)\b/.test(pl)) continue
+    if (/\bprésentée? comme\b.{0,60}\b(ville|cité|capitale)\b/.test(pl)) continue
+    return p
+  }
+  return paragraphs[0] ?? null
 }
 
 function pickNickname(aliases) {

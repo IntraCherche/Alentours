@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.4.9] — 2026-05-17
+
+### Added
+- **Wikipedia fun-fact extract** — the town description card and TTS now show the last interesting paragraph of the Wikipedia intro instead of the first two administrative sentences. Administrative boilerplate (commune/municipality declaration, department, region, population) and commercial copy ("élue meilleure ville selon Lonely Planet", "prix et classements") are filtered out; the algorithm walks backwards from the last paragraph so the most distinctive fact about the place is shown first. Result: *Toulouse* → "Le cassoulet, la saucisse et la violette sont les spécialités emblématiques de la gastronomie toulousaine." instead of the standard commune/prefecture sentence.
+- **Language-aware Wikipedia & Wikidata cache** — the IndexedDB and localStorage caches are now keyed per language (`${osmId}_fr` / `${osmId}_en`). Switching the app language from French to English (or vice versa) triggers a fresh fetch of Wikipedia extracts and Wikidata labels in the selected language. The IDB schema version is bumped to 2; existing entries are cleared automatically on first open.
+
+### Fixed
+- **Blank panel with "relaxed" min-time setting** — when the nearest-town panel cleared (no town in range), `lastDisplayChange` was not reset, so the next town that appeared had to wait out the remainder of the previous town's hold time (up to several minutes for the "relaxed" preset). Fixed: `lastDisplayChange` is now reset to 0 when the panel clears, so the next town is shown immediately.
+- **Demo mode stays at destination** — when a demo trip finishes the map and panel now remain at the destination instead of jumping back to the start position. A *Replay* button restarts the route from the beginning; *Stop* is the only action that returns to the real GPS position.
+
+### Changed
+- **TTS description label** — "Lire la description à voix haute" renamed to "Lire la description de la ville à voix haute" for clarity.
+
+---
+
 ## [1.4.8] — 2026-05-17
 
 ### Added

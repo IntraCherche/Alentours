@@ -51,7 +51,7 @@ export function useDemoMode() {
       demoPosition.value = positionAt(cursorDist)
       clearInterval(intervalId)
       intervalId = null
-      demoState.value = 'idle'
+      demoState.value = 'finished'
       return
     }
     demoPosition.value = positionAt(cursorDist)
@@ -59,6 +59,7 @@ export function useDemoMode() {
 
   function startDemo() {
     if (demoState.value === 'running') return
+    if (demoState.value === 'finished') cursorDist = 0
     lastTick = null
     demoState.value = 'running'
     intervalId = setInterval(tick, 200)

@@ -142,7 +142,7 @@
             </div>
           </div>
 
-          <div v-if="displayedNearest.wiki" class="town-extract">{{ displayedNearest.wiki.extract }}</div>
+          <div v-if="displayedNearest.wiki" class="town-extract" :class="{ 'town-extract--dim': !displayExtract }">{{ displayExtract || t('noDescription') }}</div>
           <div v-else class="town-extract town-extract--dim">{{ t('noDescription') }}</div>
         </div>
 
@@ -281,6 +281,10 @@
               </template>
               <template v-else-if="demoState === 'paused'">
                 <button class="btn btn--primary" @click="startDemo">{{ t('demoResume') }}</button>
+                <button class="btn" @click="stopDemoMode">{{ t('demoStop') }}</button>
+              </template>
+              <template v-else-if="demoState === 'finished'">
+                <button class="btn btn--primary" @click="startDemo">{{ t('demoReplay') }}</button>
                 <button class="btn" @click="stopDemoMode">{{ t('demoStop') }}</button>
               </template>
             </div>
@@ -710,6 +714,7 @@ function tryUpdateDisplayedNearest() {
     pendingDisplayTimer = null
     displayedNearest.value = nearest.value
     if (nearest.value) lastDisplayChange = Date.now()
+    else lastDisplayChange = 0  // panel is blank — next town should appear without delay
   } else if (!pendingDisplayTimer) {
     pendingDisplayTimer = setTimeout(() => {
       pendingDisplayTimer = null
@@ -726,6 +731,8 @@ const asideScrollDist = ref(0)
 const asideScrollDur  = ref(20)
 
 let lastAnnouncedTownId = null
+
+const displayExtract = computed(() => displayedNearest.value?.wiki?.filteredExtract ?? null)
 
 function announceTown(town) {
   const dept       = town.wiki?.department
@@ -757,8 +764,8 @@ function announceTown(town) {
     sentence += ' ' + t(`ttsPopOnly_${gender}`).replace('{word}', word).replace('{pop}', approximatePopulation(population))
   }
 
-  if (ttsReadDescription.value && town.wiki?.extract) {
-    sentence += ' ' + town.wiki.extract
+  if (ttsReadDescription.value && town.wiki?.filteredExtract) {
+    sentence += ' ' + town.wiki.filteredExtract
   }
 
   speak(sentence, lang.value)
