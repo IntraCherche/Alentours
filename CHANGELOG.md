@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.10] — 2026-05-17
+
+### Fixed
+- **OSRM timeout for long trips** — the OSRM fetch timeout was raised from 6 s to 15 s. The public demo server takes proportionally longer for long routes (full polyline6 geometry over hundreds of kilometres), causing it to always exceed 6 s and silently fall back to crow-fly distance. Short trips were unaffected; long trips now correctly receive and display the road route.
+
+---
+
 ## [1.4.9] — 2026-05-17
 
 ### Added
