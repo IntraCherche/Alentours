@@ -120,6 +120,12 @@ export function useNearbyTowns() {
         prefetchProgress.value = 75 + Math.round(pct * 25)
       })
 
+      // IDB-cached towns skipped enrichWithWikidata — ensure filteredExtract is always present
+      for (const t of uniqueList) {
+        if (t.wiki && t.wiki.filteredExtract == null)
+          t.wiki.filteredExtract = pickExtractParagraph(t.wiki.extract, t.wiki)
+      }
+
       // Persist newly enriched towns to the permanent IDB cache (full data, no truncation)
       try {
         await wikiCachePutMany(needsWiki.filter(t => t.wiki).map(t => ({ id: t.id, wiki: t.wiki })), lang.value)
@@ -238,6 +244,10 @@ export function useNearbyTowns() {
             }
           }
         }
+        for (const t of cached) {
+          if (t.wiki && t.wiki.filteredExtract == null)
+            t.wiki.filteredExtract = pickExtractParagraph(t.wiki.extract, t.wiki)
+        }
         towns.value = cached
         return
       }
@@ -299,6 +309,10 @@ export function useNearbyTowns() {
         } catch {}
       }
 
+      for (const t of list) {
+        if (t.wiki && t.wiki.filteredExtract == null)
+          t.wiki.filteredExtract = pickExtractParagraph(t.wiki.extract, t.wiki)
+      }
       towns.value = list
     } catch (err) {
       error.value = err.message
@@ -384,6 +398,10 @@ export function useNearbyTowns() {
             for (const t of stillMissing) { if (t.wiki && townCache[t.id]) townCache[t.id].wiki = t.wiki }
           }
         }
+        for (const t of cities) {
+          if (t.wiki && t.wiki.filteredExtract == null)
+            t.wiki.filteredExtract = pickExtractParagraph(t.wiki.extract, t.wiki)
+        }
         towns.value = cities
         return
       }
@@ -429,6 +447,10 @@ export function useNearbyTowns() {
         try { await wikiCachePutMany(needsEnrich.filter(t => t.wiki).map(t => ({ id: t.id, wiki: t.wiki })), lang.value) } catch {}
       }
 
+      for (const t of list) {
+        if (t.wiki && t.wiki.filteredExtract == null)
+          t.wiki.filteredExtract = pickExtractParagraph(t.wiki.extract, t.wiki)
+      }
       towns.value = list
     } catch (err) {
       error.value = err.message

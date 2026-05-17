@@ -34,7 +34,7 @@
         <div class="speed-row">
           <div class="speed-cell">
             <span class="speed-label">{{ t('currentSpeed') }}</span>
-            <span class="speed-val">{{ position?.speed != null ? formatSpeed(position.speed) : '—' }}</span>
+            <span class="speed-val">{{ effectivePosition?.speed != null ? formatSpeed(effectivePosition.speed) : '—' }}</span>
           </div>
           <div class="speed-cell">
             <span class="speed-label">{{ t('avgSpeed') }}</span>

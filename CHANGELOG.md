@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.12] — 2026-05-17
+
+### Fixed
+- **Current speed hidden in demo mode** — the speed display was reading `position.speed` (the raw GPS position, never updated in demo mode) instead of `effectivePosition.speed`. The demo position now correctly feeds the current-speed cell.
+
+---
+
 ## [1.4.11] — 2026-05-17
 
 ### Fixed
