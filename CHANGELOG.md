@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.4.14] — 2026-05-17
+
+### Added
+- **Persistent data-sharing notice** — two permanent, always-visible notices explain which third-party services receive the device's location:
+  - **About modal** (☰ → ⓘ) — a "Data & Privacy" section lists OpenStreetMap, Wikipedia & Wikidata, and OSRM with a one-line description of what each service receives, plus a note that no data is stored server-side.
+  - **Settings → GPS section** — a one-line caption below the *Start GPS* button names the three services, shown every time the control is in view.
+
+---
+
 ## [1.4.13] — 2026-05-17 🔒 Security audit
 
 This release is the result of a full security audit of the codebase. No critical exploits were found, but several hardening measures have been applied across the stack.

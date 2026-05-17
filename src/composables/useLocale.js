@@ -129,6 +129,13 @@ const translations = {
     privacyTitle: 'Privacy Notice',
     privacyBody: 'This app uses your GPS location to display nearby towns as you drive. Your approximate position is shared with the following free, open services:\n• OpenStreetMap — map tiles and town lookup\n• Wikipedia & Wikidata — town descriptions and facts\n• OSRM — route calculation\n\nNo personal data is stored on any server. All data stays on your device.',
     privacyAccept: 'I understand',
+    aboutDataTitle: 'Data & Privacy',
+    aboutDataNote: 'Starting GPS shares your approximate location with:',
+    aboutDataOSM: 'OpenStreetMap — map tiles, geocoding, nearby towns',
+    aboutDataWiki: 'Wikipedia & Wikidata — town descriptions and facts',
+    aboutDataOSRM: 'OSRM — route geometry and distance',
+    aboutDataFooter: 'No data is stored on any server.',
+    gpsDataNote: 'Location shared with OpenStreetMap, Wikipedia & Wikidata, OSRM.',
   },
   fr: {
     noRoute: 'Aucun itinéraire',
@@ -254,6 +261,13 @@ const translations = {
     privacyTitle: 'Confidentialité',
     privacyBody: 'Cette application utilise votre GPS pour afficher les villes à proximité pendant votre trajet. Votre position approximative est transmise aux services libres et ouverts suivants :\n• OpenStreetMap — tuiles de carte et recherche de villes\n• Wikipedia & Wikidata — descriptions et informations sur les villes\n• OSRM — calcul d\'itinéraire\n\nAucune donnée personnelle n\'est stockée sur un serveur. Tout reste sur votre appareil.',
     privacyAccept: 'J\'ai compris',
+    aboutDataTitle: 'Données & confidentialité',
+    aboutDataNote: 'Démarrer le GPS transmet votre position approximative à :',
+    aboutDataOSM: 'OpenStreetMap — tuiles, géocodage, villes proches',
+    aboutDataWiki: 'Wikipedia & Wikidata — descriptions et informations',
+    aboutDataOSRM: 'OSRM — géométrie et distance d\'itinéraire',
+    aboutDataFooter: 'Aucune donnée n\'est stockée sur un serveur.',
+    gpsDataNote: 'Position partagée avec OpenStreetMap, Wikipedia & Wikidata, OSRM.',
   }
 }
 

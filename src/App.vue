@@ -258,6 +258,7 @@
               <span v-if="position.speed != null"> · {{ formatSpeed(position.speed) }}</span>
             </p>
             <p v-if="geoError" class="error-text">{{ geoError }}</p>
+            <p class="gps-data-note">{{ t('gpsDataNote') }}</p>
           </section>
 
           <!-- Demo controls (visible when demo mode is enabled and route is ready) -->
@@ -454,6 +455,18 @@
           <div class="about-sub">{{ t('aboutSub') }}</div>
           <div class="about-version">v{{ appVersion }}</div>
           <div class="about-author">{{ t('madeBy') }}</div>
+
+          <hr class="about-divider" />
+
+          <div class="about-data-title">{{ t('aboutDataTitle') }}</div>
+          <p class="about-data-note">{{ t('aboutDataNote') }}</p>
+          <ul class="about-data-list">
+            <li>{{ t('aboutDataOSM') }}</li>
+            <li>{{ t('aboutDataWiki') }}</li>
+            <li>{{ t('aboutDataOSRM') }}</li>
+          </ul>
+          <p class="about-data-footer">{{ t('aboutDataFooter') }}</p>
+
           <button class="icon-btn" @click="aboutOpen = false">✕</button>
         </div>
       </div>
@@ -1957,6 +1970,47 @@ function sideArrow(s) {
   color: var(--text-dim);
   letter-spacing: 0.06em;
   margin-top: 0.2rem;
+}
+.about-divider {
+  width: 100%;
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 0.4rem 0;
+}
+.about-data-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  align-self: flex-start;
+}
+.about-data-note {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  margin: 0.1rem 0 0.2rem;
+  align-self: flex-start;
+}
+.about-data-list {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  margin: 0;
+  padding-left: 1.1rem;
+  align-self: flex-start;
+  line-height: 1.7;
+}
+.about-data-footer {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  font-style: italic;
+  margin: 0.15rem 0 0;
+  align-self: flex-start;
+}
+.gps-data-note {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  margin: 0.4rem 0 0;
+  line-height: 1.4;
 }
 
 /* ── Privacy notice ──────────────────────────────────────────────── */
