@@ -12,7 +12,7 @@ Designed to be glanced at from the passenger seat or mounted on a motorhome scre
 
 - **Directional awareness** — large arrows (⬅ ➡ ⬆ ⬇) flank the town name and show at a glance where the town sits relative to your heading; color-coded by direction
 - **Multi-leg trips** — plan several legs of a journey and switch between them with a tab bar; each leg saves its own GPS path, progress, and towns cache; only one leg is active at a time
-- **Route planning** — type an origin and destination; progress is projected along the straight line between them with distance done, distance left, ETA, and driven distance (odometer)
+- **Route planning** — type an origin and destination; the actual driving route is fetched via OSRM (with straight-line fallback if unavailable), drawn on the map as a road-following polyline, and used for accurate distance done/left, ETA, and town corridor pre-fetching
 - **GPS tracking** — follows your position in real time, draws your actual path over the planned route, shows current and average speed
 - **Route progress** — progress bar with distance done, distance left, ETA and percentage
 - **Nearest town panel** — as you drive, shows the closest town with:
@@ -39,8 +39,7 @@ Designed to be glanced at from the passenger seat or mounted on a motorhome scre
 | Map | Leaflet + OpenStreetMap tiles |
 | GPS | Browser Geolocation API |
 | Geocoding | Nominatim (OpenStreetMap) |
-| Route progress | Straight-line (haversine) projection |
-| Demo route geometry | OSRM (router.project-osrm.org) |
+| Route geometry & progress | OSRM (router.project-osrm.org) with haversine fallback |
 | Nearby towns | Overpass API |
 | Town descriptions | MediaWiki Action API (batch, with geo-search fallback) |
 | Enriched town data | Wikidata SPARQL (`query.wikidata.org`) |

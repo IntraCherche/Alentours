@@ -171,7 +171,7 @@
     </main>
 
     <!-- ── SETTINGS DRAWER ──────────────────────────────────────── -->
-    <div v-if="settingsOpen" class="backdrop" @click="settingsOpen = false"></div>
+    <div v-if="settingsOpen" class="backdrop" @click="() => { if (!routeLoading && !prefetching) settingsOpen = false }"></div>
 
     <Transition name="drawer">
       <div class="settings-drawer" v-if="settingsOpen">
@@ -579,7 +579,8 @@ const {
   loadRoute, updatePosition, sampleRoutePoints, restoreRoute,
   totalDistance, progress, distanceDone, distanceLeft,
   routeLoaded, routeName, origin, destination,
-  loading: routeLoading, error: routeError
+  loading: routeLoading, error: routeError,
+  routePoints, routeMode
 } = useRouteProgress()
 
 // ── Nearby towns ───────────────────────────────────────────────────────
@@ -591,6 +592,7 @@ watch(prefetching, (active) => {
   if (active) {
     prefetchElapsed.value = 0
     prefetchTimer = setInterval(() => { prefetchElapsed.value++ }, 1000)
+    activeTab.value = 'trip'   // always show progress regardless of current tab
   } else {
     clearInterval(prefetchTimer)
     prefetchTimer = null
@@ -848,10 +850,9 @@ function fitBoundsToRoute() {
 function drawPlannedRoute() {
   if (!map || !L || !origin.value || !destination.value) return
 
-  const latlngs = [
-    [origin.value.lat, origin.value.lng],
-    [destination.value.lat, destination.value.lng]
-  ]
+  const latlngs = routeMode.value === 'osrm' && routePoints.value.length > 1
+    ? routePoints.value
+    : [[origin.value.lat, origin.value.lng], [destination.value.lat, destination.value.lng]]
 
   routePolyline = L.polyline(latlngs, {
     color: '#7090b0',
@@ -1112,6 +1113,7 @@ function selectFirstTo()   { if (toSuggestions.value[0])   selectTo(toSuggestion
 
 // ── Trip lifecycle ─────────────────────────────────────────────────────
 async function startTrip() {
+  activeTab.value = 'trip'
   await loadRoute(fromPlace.value, toPlace.value)
   if (routeLoaded.value) {
     const newId = crypto.randomUUID()
@@ -1122,6 +1124,8 @@ async function startTrip() {
       await prefetchForRoute(samples, CORRIDOR_RADII[cacheMode.value])
     }
     if (!demoEnabled.value) startGps()
+    // Brief pause so the user sees the active-trip state before the panel closes
+    await new Promise(r => setTimeout(r, 800))
     settingsOpen.value = false
     persistSession()
   }

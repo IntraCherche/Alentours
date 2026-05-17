@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.4.8] — 2026-05-17
+
+### Added
+- **OSRM road routing** — at trip start the app queries `router.project-osrm.org` to obtain the actual driving geometry. Road distance replaces the previous crow-flies estimate, the planned-route line on the map now follows roads instead of being a straight dashed line, and town pre-fetching samples points along the real corridor rather than a straight line between origin and destination. If OSRM is unreachable or times out (6 s), the app falls back silently to the straight-line computation as before.
+- **Progress tracking along the road** — position updates are now projected onto the nearest segment of the OSRM polyline (replacing the dot-product projection onto a single vector), giving accurate distance-done/left figures even on curved routes.
+
+### Fixed
+- **Prefetch progress bar always visible** — the prefetch progress section is now guaranteed to be on screen whenever downloading is in progress: `startTrip` forces the Trip tab open before the OSRM fetch begins, and a second guard switches to the Trip tab the moment `prefetching` becomes true (covers the case where the user navigated to another tab while OSRM was loading). The backdrop is locked during both the OSRM-loading and prefetching phases so an accidental tap can no longer dismiss the panel mid-download. An 800 ms pause after prefetch completion lets the user see the "active trip" confirmation before the drawer closes.
+
+---
+
 ## [1.4.7] — 2026-05-17
 
 ### Added
