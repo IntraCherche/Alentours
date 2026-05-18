@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.2] — 2026-05-18
+
+### Fixed
+- **Route geometry lost on page refresh** — the OSRM polyline is now saved to both the session snapshot and the trip record, and restored on reload. Previously `routePoints` and `routeMode` were never persisted, so the map always fell back to a straight line between A and B after a refresh.
+
+---
+
 ## [1.5.1] — 2026-05-18
 
 ### Fixed
