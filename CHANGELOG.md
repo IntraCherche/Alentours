@@ -1,5 +1,34 @@
 # Changelog
 
+## [1.5.0] — 2026-05-18
+
+### Added
+- **Sightseeing / foot mode** — a new mode toggled from the top-bar menu (🚶) switches the app from road-trip tracking to pedestrian exploration:
+  - Queries Wikidata via SPARQL (`wikibase:around`) for cultural POIs within 500 m: monuments, museums, churches, castles, archaeological sites, bridges, cemeteries, and more (18 Wikidata types).
+  - Enriches POIs that have a Wikipedia sitelink with their full intro extract and thumbnail via the MediaWiki API.
+  - Shows the nearest POI in the main panel with name, distance, image, short description, and Wikipedia extract.
+  - TTS announces each new POI; a verbosity setting (Audio tab) controls whether the announcement is brief (name only), normal (one sentence), or full (complete extract).
+  - Throttled to 1 SPARQL call per 100 m moved or 60 s elapsed to avoid hammering the endpoint.
+  - Foot mode state is persisted to `localStorage`.
+- **TTS per-session deduplication** (`useTTS`) — `shouldAnnounce` / `markAnnounced` / `clearAnnounced` replace the single `lastAnnouncedTownId` variable. A town or POI is not re-announced for 2 hours, preventing repeated speech in traffic jams or when walking back past a monument. The cooldown map is cleared when a trip is reset or a new one is started.
+- **OSRM timeout setting** — an *Advanced* settings field lets the user choose the route-fetch timeout (5–120 s, default 15 s). A red toast appears when the timeout fires and the app falls back to crow-fly distance.
+- **"Use my location" button** — a small ⊕ button next to the *From* label in the trip planner fills the origin field with the device's current position (reverse-geocoded via Nominatim). Uses the live GPS position if already running; otherwise fires a one-shot `getCurrentPosition`.
+
+### Changed
+- Top-bar route name replaced by "🚶 Sightseeing" label when foot mode is active.
+- Progress bar hidden in foot mode (irrelevant without a planned route).
+- GPS settings section is now visible in foot mode even without a loaded route.
+- `clearAnnounced()` is called on trip reset and new-trip creation to avoid stale suppressions carrying over.
+
+---
+
+## [1.4.16] — 2026-05-18
+
+### Added
+- **Full address input** — the From and To fields in the trip planner now accept and resolve complete addresses (street + house number), not just city names. Nominatim results include `addressdetails=1`; the label formatter prefers `house_number + road` when present.
+
+---
+
 ## [1.4.15] — 2026-05-18
 
 ### Added

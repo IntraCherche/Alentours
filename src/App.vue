@@ -4,11 +4,15 @@
     <!-- ── TOP BAR ──────────────────────────────────────────────── -->
     <header class="topbar">
       <div class="topbar__row">
-        <div class="topbar__route">{{ routeName || t('noRoute') }}</div>
+        <div class="topbar__route">{{ footMode ? t('footModeLabel') : (routeName || t('noRoute')) }}</div>
         <div class="menu-wrap">
           <button class="icon-btn menu-btn" :class="{ active: menuOpen }" @click="menuOpen = !menuOpen" title="Menu">☰</button>
           <Transition name="menu">
             <div v-if="menuOpen" class="menu-dropdown">
+              <button class="menu-item" @click="footMode = !footMode; menuOpen = false" :class="{ 'menu-item--active': footMode }">
+                <span class="menu-item__icon">🚶</span>
+                <span>{{ footMode ? t('footModeOff') : t('footModeOn') }}</span>
+              </button>
               <button class="menu-item" @click="settingsOpen = true; menuOpen = false">
                 <span class="menu-item__icon">⚙</span>
                 <span>{{ t('settings') }}</span>
@@ -21,7 +25,7 @@
           </Transition>
         </div>
       </div>
-      <template v-if="routeLoaded">
+      <template v-if="routeLoaded && !footMode">
         <div class="progress-track">
           <div class="progress-fill" :style="progressFillStyle"></div>
           <div class="progress-thumb" :style="{ left: (progress ?? 0) + '%' }">{{ vehicleIcon }}</div>
@@ -52,6 +56,7 @@
       </template>
     </header>
     <div v-if="menuOpen" class="menu-backdrop" @click="menuOpen = false"></div>
+
 
     <!-- ── iOS AUTO-LOCK HINT ─────────────────────────────────────── -->
     <Transition name="ios-hint">
@@ -84,8 +89,39 @@
         :style="asideScrollDist > 0 ? { '--aside-dist': `-${asideScrollDist}px`, '--aside-dur': `${asideScrollDur}s` } : {}"
       >
 
-        <!-- Nearest town -->
-        <div class="panel panel--town" v-if="displayedNearest">
+        <!-- ── FOOT MODE: nearest POI ────────────────────────────── -->
+        <div class="panel panel--town" v-if="footMode && displayedNearestPOI">
+          <div class="panel__label">{{ t('nearestPOI') }}</div>
+          <div class="town-header">
+            <div class="town-name-row">
+              <div class="town-name">{{ displayedNearestPOI.name }}</div>
+            </div>
+          </div>
+          <div class="town-dist">{{ t('awayDist').replace('{dist}', formatKm(displayedNearestPOI.distance)) }}</div>
+          <img
+            v-if="displayedNearestPOI.image"
+            :src="displayedNearestPOI.image"
+            :alt="displayedNearestPOI.name"
+            class="town-thumbnail"
+          />
+          <div v-if="displayedNearestPOI.description" class="town-extract">{{ displayedNearestPOI.description }}</div>
+          <div v-if="displayedNearestPOI.wiki?.extract" class="town-extract">{{ displayedNearestPOI.wiki.extract }}</div>
+        </div>
+
+        <!-- Foot mode: no POI in range -->
+        <div v-else-if="footMode && position && !poisLoading" class="panel panel--waiting">
+          <div class="waiting-icon">🗿</div>
+          <div class="waiting-text">{{ t('noPOIInSight') }}</div>
+        </div>
+
+        <!-- Foot mode: querying -->
+        <div v-else-if="footMode && poisLoading" class="panel panel--waiting">
+          <div class="waiting-icon">⌛</div>
+          <div class="waiting-text">{{ t('waitingGps') }}</div>
+        </div>
+
+        <!-- ── CAR MODE: nearest town ─────────────────────────────── -->
+        <div class="panel panel--town" v-if="!footMode && displayedNearest">
           <div class="panel__label">{{ t('nearestTown') }}</div>
           <div class="town-header">
             <div class="town-name-row">
@@ -147,13 +183,13 @@
         </div>
 
         <!-- No city in range (city filter active, GPS running, query done) -->
-        <div v-else-if="minPlaceType === 'city' && position && !townsLoading" class="panel panel--waiting">
+        <div v-else-if="!footMode && minPlaceType === 'city' && position && !townsLoading" class="panel panel--waiting">
           <div class="waiting-icon">🏙</div>
           <div class="waiting-text">{{ t('noCityInSight') }}</div>
         </div>
 
-        <!-- Waiting -->
-        <div v-if="!position" class="panel panel--waiting">
+        <!-- Waiting for GPS -->
+        <div v-if="!position && !footMode" class="panel panel--waiting">
           <div class="waiting-icon">⌛</div>
           <div class="waiting-text">
             <template v-if="routeLoaded">{{ t('startGpsHint') }}</template>
@@ -197,7 +233,12 @@
             <div class="section-label">{{ t('planTrip') }}</div>
 
             <div class="input-group">
-              <label class="input-label">{{ t('fromLabel') }}</label>
+              <div class="input-label-row">
+                <label class="input-label">{{ t('fromLabel') }}</label>
+                <button class="btn btn--locate" :disabled="locatingMe" @click="setFromMyLocation">
+                  {{ locatingMe ? t('locatingYou') : t('useMyLocation') }}
+                </button>
+              </div>
               <div class="autocomplete">
                 <input class="text-input" v-model="fromQuery" :placeholder="t('fromPlaceholder')"
                   @input="onFromInput" @keydown.enter="selectFirstFrom" />
@@ -252,7 +293,7 @@
           </section>
 
           <!-- GPS (hidden when demo mode is active) -->
-          <section class="drawer-section" v-if="routeLoaded && !prefetching && !demoEnabled">
+          <section class="drawer-section" v-if="(routeLoaded || footMode) && !prefetching && !demoEnabled">
             <div class="section-label">{{ t('gps') }}</div>
             <button class="btn" :class="{ active: watching }" @click="toggleGps">
               {{ watching ? t('stopGps') : t('startGps') }}
@@ -418,7 +459,7 @@
             </select>
           </section>
 
-          <!-- Read description aloud -->
+          <!-- Read description aloud (car mode) -->
           <section class="drawer-section">
             <div class="section-label">{{ t('ttsReadDescription') }}</div>
             <select class="text-input lang-select" v-model="ttsReadDescription">
@@ -427,10 +468,24 @@
             </select>
           </section>
 
+          <!-- Description length (foot mode) -->
+          <section class="drawer-section">
+            <div class="section-label">{{ t('ttsFootVerbosity') }}</div>
+            <select class="text-input lang-select" v-model="ttsFootVerbosity">
+              <option value="short">{{ t('ttsVerbosityShort') }}</option>
+              <option value="normal">{{ t('ttsVerbosityNormal') }}</option>
+              <option value="long">{{ t('ttsVerbosityLong') }}</option>
+            </select>
+          </section>
+
         </template>
 
         <!-- ── TAB: ADVANCED ─────────────────────────────────────── -->
         <template v-if="activeTab === 'advanced'">
+          <section class="drawer-section">
+            <div class="section-label">{{ t('osrmTimeoutLabel') }}</div>
+            <input type="number" class="number-input" min="5" max="120" step="1" v-model.number="osrmTimeout" />
+          </section>
           <section class="drawer-section" v-if="demoUnlocked">
             <div class="section-label">{{ t('demoSection') }}</div>
             <label class="toggle-label">
@@ -446,6 +501,11 @@
     <!-- ── DEMO UNLOCKED TOAST ───────────────────────────────────────── -->
     <Transition name="fade">
       <div v-if="showDemoUnlockedToast" class="demo-toast">{{ t('demoUnlockedMsg') }}</div>
+    </Transition>
+
+    <!-- ── OSRM TIMEOUT TOAST ─────────────────────────────────────────── -->
+    <Transition name="fade">
+      <div v-if="showOsrmTimeoutToast" class="osrm-timeout-toast">{{ t('osrmTimeoutToast') }}</div>
     </Transition>
 
     <!-- ── ABOUT MODAL ────────────────────────────────────────────── -->
@@ -497,11 +557,12 @@ import { useLocale } from './composables/useLocale.js'
 import { useGeolocation } from './composables/useGeolocation.js'
 import { useRouteProgress } from './composables/useRouteProgress.js'
 import { useNearbyTowns } from './composables/useNearbyTowns.js'
+import { useNearbyPOIs } from './composables/useNearbyPOIs.js'
 import { useTTS } from './composables/useTTS.js'
 import { useSession } from './composables/useSession.js'
 import { useTrips } from './composables/useTrips.js'
 import { useDemoMode } from './composables/useDemoMode.js'
-import { geocodeSuggestions } from './composables/useGeocoding.js'
+import { geocodeSuggestions, reverseGeocode } from './composables/useGeocoding.js'
 import TripTabs from './components/TripTabs.vue'
 
 // ── App version (injected by Vite from package.json) ──────────────────
@@ -627,11 +688,22 @@ const {
   totalDistance, progress, distanceDone, distanceLeft,
   routeLoaded, routeName, origin, destination,
   loading: routeLoading, error: routeError,
-  routePoints, routeMode
+  routePoints, routeMode, timedOut: routeTimedOut
 } = useRouteProgress()
 
 // ── Nearby towns ───────────────────────────────────────────────────────
 const { towns, loading: townsLoading, prefetching, prefetchProgress, prefetchCurrentTown, prefetchForRoute, fetchNearbyTowns, fetchNearestCity, resetThrottle, restoreCache, clearCache, exportTownCache, importTownCache } = useNearbyTowns()
+
+// ── Nearby POIs (foot mode) ────────────────────────────────────────────
+const { pois, loading: poisLoading, fetchNearbyPOIs, resetThrottle: resetPOIThrottle } = useNearbyPOIs()
+
+// ── Foot mode ──────────────────────────────────────────────────────────
+const footMode = ref(localStorage.getItem('foot-mode') === 'true')
+watch(footMode, (v) => {
+  localStorage.setItem('foot-mode', String(v))
+  clearAnnounced()
+  resetPOIThrottle()
+})
 
 const prefetchElapsed = ref(0)
 let prefetchTimer = null
@@ -647,9 +719,17 @@ watch(prefetching, (active) => {
 })
 
 // ── TTS ────────────────────────────────────────────────────────────────
-const { ttsEnabled, speak } = useTTS()
+const { ttsEnabled, speak, shouldAnnounce, markAnnounced, clearAnnounced } = useTTS()
 const ttsReadDescription = ref(localStorage.getItem('tts-read-description') === 'true')
 watch(ttsReadDescription, (v) => localStorage.setItem('tts-read-description', String(v)))
+
+const VALID_VERBOSITY = new Set(['short', 'normal', 'long'])
+const ttsFootVerbosity = ref(
+  VALID_VERBOSITY.has(localStorage.getItem('ttsFootVerbosity'))
+    ? localStorage.getItem('ttsFootVerbosity')
+    : 'normal'
+)
+watch(ttsFootVerbosity, (v) => localStorage.setItem('ttsFootVerbosity', v))
 
 // ── Speed tracking ─────────────────────────────────────────────────────
 const tripStartTime     = ref(null)
@@ -745,6 +825,16 @@ watch(nearbyMinDuration, v => {
   tryUpdateDisplayedNearest()
 })
 
+const osrmTimeout = ref(parseInt(localStorage.getItem('osrmTimeout') || '15', 10))
+watch(osrmTimeout, v => localStorage.setItem('osrmTimeout', String(v)))
+
+const showOsrmTimeoutToast = ref(false)
+watch(routeTimedOut, (v) => {
+  if (!v) return
+  showOsrmTimeoutToast.value = true
+  setTimeout(() => { showOsrmTimeoutToast.value = false }, 6000)
+})
+
 const displayedNearest = ref(null)
 let lastDisplayChange = 0
 let pendingDisplayTimer = null
@@ -773,9 +863,10 @@ const asideInnerRef  = ref(null)
 const asideScrollDist = ref(0)
 const asideScrollDur  = ref(20)
 
-let lastAnnouncedTownId = null
-
 const displayExtract = computed(() => displayedNearest.value?.wiki?.filteredExtract ?? null)
+
+// Foot mode: always show the nearest POI immediately (no min-duration lock)
+const displayedNearestPOI = computed(() => footMode.value ? (pois.value[0] ?? null) : null)
 
 function announceTown(town) {
   const dept       = town.wiki?.department
@@ -819,11 +910,38 @@ watch(nearest, tryUpdateDisplayedNearest, { immediate: true })
 watch(displayedNearest, async (town) => {
   await nextTick()
   measureAside()
-  if (town && town.id !== lastAnnouncedTownId) {
-    lastAnnouncedTownId = town.id
+  if (town && shouldAnnounce(town.id)) {
+    markAnnounced(town.id)
     announceTown(town)
   }
 })
+
+watch(displayedNearestPOI, async (poi) => {
+  await nextTick()
+  measureAside()
+  if (poi && shouldAnnounce(poi.id)) {
+    markAnnounced(poi.id)
+    announcePOI(poi)
+  }
+})
+
+function announcePOI(poi) {
+  let text = poi.name
+  if (poi.description) text += '. ' + poi.description + '.'
+
+  if (ttsFootVerbosity.value !== 'short' && poi.wiki?.extract) {
+    const extract = poi.wiki.extract
+    if (ttsFootVerbosity.value === 'normal') {
+      const para = extract.split('\n').find(p => p.trim().length > 20) ?? ''
+      if (para) text += ' ' + para
+    } else {
+      // long: full extract, capped at 3000 chars to avoid multi-minute readings
+      text += ' ' + extract.slice(0, 3000)
+    }
+  }
+
+  speak(text, lang.value)
+}
 watch(townFontScale, async () => {
   await nextTick()
   measureAside()
@@ -1117,7 +1235,9 @@ watch(effectivePosition, async (pos) => {
   if (map && mapFollowZoom.value !== 'overview' && (isDemo || watching.value)) {
     map.setView([pos.lat, pos.lng], parseInt(mapFollowZoom.value), { animate: true, duration: isDemo ? 0.1 : 1 })
   }
-  if (routeLoaded.value) {
+  if (footMode.value) {
+    await fetchNearbyPOIs(pos.lat, pos.lng)
+  } else if (routeLoaded.value) {
     updatePosition(pos.lat, pos.lng)
     if (minPlaceType.value === 'city') {
       await fetchNearestCity(pos.lat, pos.lng, pos.heading)
@@ -1168,10 +1288,32 @@ function swapFromTo() {
   saveLocations(fromPlace.value, toPlace.value)
 }
 
+const locatingMe = ref(false)
+async function setFromMyLocation() {
+  locatingMe.value = true
+  try {
+    let lat, lng
+    if (position.value) {
+      lat = position.value.lat
+      lng = position.value.lng
+    } else {
+      const pos = await new Promise((resolve, reject) =>
+        navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 8000 })
+      )
+      lat = pos.coords.latitude
+      lng = pos.coords.longitude
+    }
+    const place = await reverseGeocode(lat, lng)
+    selectFrom(place)
+  } catch { /* ignore — user can type manually */ } finally {
+    locatingMe.value = false
+  }
+}
+
 // ── Trip lifecycle ─────────────────────────────────────────────────────
 async function startTrip() {
   activeTab.value = 'trip'
-  await loadRoute(fromPlace.value, toPlace.value)
+  await loadRoute(fromPlace.value, toPlace.value, osrmTimeout.value * 1000)
   if (routeLoaded.value) {
     const newId = crypto.randomUUID()
     activeTripId.value = newId
@@ -1191,6 +1333,7 @@ async function startTrip() {
 function resetTrip() {
   stopGps()
   clearMapLayers()
+  clearAnnounced()
   if (activeTripId.value) {
     deleteSavedTrip(activeTripId.value)
     activeTripId.value = null
@@ -1220,6 +1363,7 @@ function createNewTrip() {
   if (routeLoaded.value && activeTripId.value) persistSession()
   stopGps()
   clearMapLayers()
+  clearAnnounced()
   clearSession()
   clearCache()
   clearTimeout(saveTimer)
@@ -1682,7 +1826,7 @@ function sideArrow(s) {
   letter-spacing: 0.04em;
   transition: background 0.15s, color 0.15s;
 }
-.menu-item:hover { background: var(--bg-card); color: var(--accent); }
+.menu-item:hover, .menu-item--active { background: var(--bg-card); color: var(--accent); }
 .menu-item__icon { font-size: 1rem; width: 1.2em; text-align: center; }
 .menu-enter-active,
 .menu-leave-active { transition: opacity 0.15s ease, transform 0.15s ease; }
@@ -1741,7 +1885,21 @@ function sideArrow(s) {
 }
 
 .input-group { display: flex; flex-direction: column; gap: 0.3rem; }
+.input-label-row { display: flex; align-items: center; justify-content: space-between; }
 .input-label { font-size: 0.75rem; color: var(--text-muted); }
+.btn--locate {
+  font-size: 0.7rem;
+  padding: 0.15rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: none;
+  color: var(--accent);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  white-space: nowrap;
+}
+.btn--locate:hover:not(:disabled) { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.btn--locate:disabled { opacity: 0.5; cursor: default; }
 .autocomplete { position: relative; }
 .text-input {
   width: 100%;
@@ -2117,6 +2275,33 @@ function sideArrow(s) {
   pointer-events: none;
   white-space: nowrap;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+.osrm-timeout-toast {
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #c0392b;
+  color: white;
+  padding: 0.6rem 1.25rem;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  z-index: 2000;
+  pointer-events: none;
+  max-width: min(90vw, 26rem);
+  text-align: center;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+.number-input {
+  width: 5rem;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--border, #ccc);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.9rem;
+  text-align: right;
 }
 
 /* ── Portrait layout ──────────────────────────────────────────────── */

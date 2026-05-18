@@ -3,6 +3,7 @@
  */
 
 const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search'
+const NOMINATIM_REVERSE_URL = 'https://nominatim.openstreetmap.org/reverse'
 
 export async function geocode(query) {
   const url = `${NOMINATIM_URL}?q=${encodeURIComponent(query)}&format=json&limit=3`
@@ -33,6 +34,16 @@ function buildLabel(r) {
 
   if (primary && primary !== city) return [primary, cityLine].filter(Boolean).join(', ')
   return cityLine || r.display_name.split(',')[0]
+}
+
+export async function reverseGeocode(lat, lng) {
+  const url = `${NOMINATIM_REVERSE_URL}?lat=${lat}&lon=${lng}&format=json&addressdetails=1`
+  const res = await fetch(url, {
+    headers: { 'Accept-Language': 'en', 'User-Agent': 'motorhome-dashboard/1.0' }
+  })
+  if (!res.ok) throw new Error('Reverse geocoding failed')
+  const r = await res.json()
+  return { name: buildLabel(r), lat, lng }
 }
 
 export async function geocodeSuggestions(query) {

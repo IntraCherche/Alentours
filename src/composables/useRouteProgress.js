@@ -15,10 +15,12 @@ export function useRouteProgress() {
   const destination = ref(null)
   const routePoints = ref([])  // [[lat, lng], …] — populated only in 'osrm' mode
   const routeMode = ref('straight')  // 'osrm' | 'straight'
+  const timedOut = ref(false)
 
-  async function loadRoute(from, to) {
+  async function loadRoute(from, to, timeoutMs = 15000) {
     loading.value = true
     error.value = null
+    timedOut.value = false
     routePoints.value = []
     routeMode.value = 'straight'
     try {
@@ -28,7 +30,7 @@ export function useRouteProgress() {
 
       try {
         const url = `${OSRM_URL}/${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=polyline6`
-        const res = await fetch(url, { signal: AbortSignal.timeout(15000) })
+        const res = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) })
         if (!res.ok) throw new Error(`OSRM ${res.status}`)
         const data = await res.json()
         if (!data.routes?.length) throw new Error('No route found')
@@ -36,7 +38,8 @@ export function useRouteProgress() {
         routePoints.value = pts
         totalDistance.value = computeLength(pts)
         routeMode.value = 'osrm'
-      } catch {
+      } catch (err) {
+        if (err?.name === 'TimeoutError' || err?.name === 'AbortError') timedOut.value = true
         totalDistance.value = haversine(from.lat, from.lng, to.lat, to.lng)
       }
 
@@ -145,7 +148,7 @@ export function useRouteProgress() {
     totalDistance, progress,
     distanceDone, distanceLeft, routeLoaded,
     routeName, origin, destination, loading, error,
-    routePoints, routeMode
+    routePoints, routeMode, timedOut
   }
 }
 
