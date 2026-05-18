@@ -1271,7 +1271,10 @@ async function initMap() {
   }).setView([46.5, 2.3], 6)
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 15 }).addTo(map)
 
-  mapResizeObserver = new ResizeObserver(() => fitBoundsToRoute())
+  mapResizeObserver = new ResizeObserver(() => {
+    if (mapFollowZoom.value === 'overview') fitBoundsToRoute()
+    else map?.invalidateSize()
+  })
   mapResizeObserver.observe(mapContainer.value)
 }
 
