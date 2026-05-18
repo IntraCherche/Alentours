@@ -152,9 +152,6 @@ const translations = {
     ttsVerbosityNormal: 'Normal (one sentence)',
     ttsVerbosityLong: 'Full description',
     // Foot mode offline cache
-    footCacheMode: 'Data mode',
-    footCacheModeNone: 'None · live queries',
-    footCacheModeOffline: 'Offline · pre-downloaded',
     footOfflineLocation: 'Download location',
     footOfflineDownload: '⬇ Download POIs',
     footOfflineDownloading: 'Downloading… {n} POIs',
@@ -318,9 +315,6 @@ const translations = {
     ttsVerbosityNormal: 'Normal (une phrase)',
     ttsVerbosityLong: 'Description complète',
     // Foot mode offline cache
-    footCacheMode: 'Mode données',
-    footCacheModeNone: 'Aucun · connexion requise',
-    footCacheModeOffline: 'Hors ligne · téléchargé',
     footOfflineLocation: 'Lieu de téléchargement',
     footOfflineDownload: '⬇ Télécharger les monuments',
     footOfflineDownloading: 'Téléchargement… {n} monuments',

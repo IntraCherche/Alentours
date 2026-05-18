@@ -9,13 +9,13 @@
           <button class="icon-btn menu-btn" :class="{ active: menuOpen }" @click="menuOpen = !menuOpen" title="Menu">☰</button>
           <Transition name="menu">
             <div v-if="menuOpen" class="menu-dropdown">
-              <button class="menu-item" @click="footMode = !footMode; menuOpen = false" :class="{ 'menu-item--active': footMode }">
-                <span class="menu-item__icon">🚶</span>
-                <span>{{ footMode ? t('footModeOff') : t('footModeOn') }}</span>
-              </button>
               <button class="menu-item" @click="settingsOpen = true; menuOpen = false">
                 <span class="menu-item__icon">⚙</span>
                 <span>{{ t('settings') }}</span>
+              </button>
+              <button class="menu-item" @click="footMode = !footMode; menuOpen = false" :class="{ 'menu-item--active': footMode }">
+                <span class="menu-item__icon">🚶</span>
+                <span>{{ footMode ? t('footModeOff') : t('footModeOn') }}</span>
               </button>
               <button class="menu-item" @click="aboutOpen = true; menuOpen = false">
                 <span class="menu-item__icon">ⓘ</span>
@@ -364,10 +364,10 @@
 
           <!-- Cache mode — foot mode -->
           <section class="drawer-section" v-if="footMode">
-            <div class="section-label">{{ t('footCacheMode') }}</div>
+            <div class="section-label">{{ t('cacheMode') }}</div>
             <select class="text-input lang-select" v-model="footCacheMode">
-              <option value="none">{{ t('footCacheModeNone') }}</option>
-              <option value="offline">{{ t('footCacheModeOffline') }}</option>
+              <option value="none">{{ t('cacheModeNone') }}</option>
+              <option value="offline">{{ t('cacheModeOffline') }}</option>
             </select>
           </section>
 
