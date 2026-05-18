@@ -17,13 +17,13 @@
                 <span class="menu-item__icon">🚶</span>
                 <span>{{ footMode ? t('footModeOff') : t('footModeOn') }}</span>
               </button>
-              <button class="menu-item" @click="aboutOpen = true; menuOpen = false">
-                <span class="menu-item__icon">ⓘ</span>
-                <span>{{ t('about') }}</span>
-              </button>
               <button class="menu-item" @click="lockScreen(); menuOpen = false">
                 <span class="menu-item__icon">🔒</span>
                 <span>{{ t('pocketLockBtn') }}</span>
+              </button>
+              <button class="menu-item" @click="aboutOpen = true; menuOpen = false">
+                <span class="menu-item__icon">ⓘ</span>
+                <span>{{ t('about') }}</span>
               </button>
             </div>
           </Transition>
