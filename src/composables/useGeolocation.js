@@ -5,7 +5,28 @@ export function useGeolocation() {
   const error = ref(null)
   const watching = ref(false)
 
-  let watchId = null
+  let watchId  = null
+  let wakeLock = null
+
+  async function requestWakeLock() {
+    if (!('wakeLock' in navigator)) return
+    try {
+      wakeLock = await navigator.wakeLock.request('screen')
+      wakeLock.addEventListener('release', () => { wakeLock = null })
+    } catch (e) {}
+  }
+
+  function releaseWakeLock() {
+    wakeLock?.release()
+    wakeLock = null
+  }
+
+  // The OS releases the wake lock when the page is hidden; re-acquire on return.
+  function onVisibilityChange() {
+    if (document.visibilityState === 'visible' && watching.value && !wakeLock) {
+      requestWakeLock()
+    }
+  }
 
   function start() {
     if (watchId !== null) return
@@ -34,6 +55,8 @@ export function useGeolocation() {
         timeout: 10000
       }
     )
+    requestWakeLock()
+    document.addEventListener('visibilitychange', onVisibilityChange)
   }
 
   function stop() {
@@ -42,6 +65,8 @@ export function useGeolocation() {
       watchId = null
       watching.value = false
     }
+    releaseWakeLock()
+    document.removeEventListener('visibilitychange', onVisibilityChange)
   }
 
   onUnmounted(stop)

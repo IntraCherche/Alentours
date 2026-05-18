@@ -21,6 +21,10 @@
                 <span class="menu-item__icon">ⓘ</span>
                 <span>{{ t('about') }}</span>
               </button>
+              <button v-if="watching || demoState === 'running'" class="menu-item" @click="lockScreen(); menuOpen = false">
+                <span class="menu-item__icon">🔒</span>
+                <span>{{ t('pocketLockBtn') }}</span>
+              </button>
             </div>
           </Transition>
         </div>
@@ -592,6 +596,16 @@
         <!-- ── TAB: ADVANCED ─────────────────────────────────────── -->
         <template v-if="activeTab === 'advanced'">
           <section class="drawer-section">
+            <div class="section-label">{{ t('pocketLockSection') }}</div>
+            <div class="input-label-row">
+              <span class="input-label">{{ t('pocketLockGestureLabel') }}</span>
+            </div>
+            <select class="text-input lang-select" v-model="lockGesture">
+              <option value="swipe">{{ t('pocketLockGestureSwipe') }}</option>
+              <option value="hold">{{ t('pocketLockGestureHold') }}</option>
+            </select>
+          </section>
+          <section class="drawer-section">
             <div class="section-label">{{ t('osrmTimeoutLabel') }}</div>
             <input type="number" class="number-input" min="5" max="120" step="1" v-model.number="osrmTimeout" />
           </section>
@@ -655,6 +669,9 @@
       </div>
     </Transition>
 
+    <!-- ── POCKET LOCK ──────────────────────────────────────────────── -->
+    <PocketLock :locked="screenLocked" :gesture="lockGesture" @unlock="unlockScreen" />
+
     <!-- ── PRIVACY NOTICE ─────────────────────────────────────────── -->
     <Transition name="fade">
       <div v-if="privacyOpen" class="about-overlay privacy-overlay">
@@ -680,10 +697,12 @@ import { useNearbyPOIs } from './composables/useNearbyPOIs.js'
 import { useTTS } from './composables/useTTS.js'
 import { useSession } from './composables/useSession.js'
 import { useTrips } from './composables/useTrips.js'
+import { usePocketLock } from './composables/usePocketLock.js'
 import { useDemoMode } from './composables/useDemoMode.js'
 import { geocodeSuggestions, reverseGeocode } from './composables/useGeocoding.js'
 import { poiCacheCount, poiCacheClear } from './composables/usePOICache.js'
-import TripTabs from './components/TripTabs.vue'
+import TripTabs   from './components/TripTabs.vue'
+import PocketLock from './components/PocketLock.vue'
 
 // ── App version (injected by Vite from package.json) ──────────────────
 const appVersion = __APP_VERSION__
@@ -697,6 +716,9 @@ const themeValue = computed({
 
 // ── Locale ─────────────────────────────────────────────────────────────
 const { lang, t } = useLocale()
+
+// ── Pocket lock ────────────────────────────────────────────────────────
+const { locked: screenLocked, gesture: lockGesture, lock: lockScreen, unlock: unlockScreen } = usePocketLock()
 
 // ── Menu + Settings drawer ─────────────────────────────────────────────
 const menuOpen     = ref(false)

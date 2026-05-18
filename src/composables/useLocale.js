@@ -169,6 +169,14 @@ const translations = {
     footIcon: 'Pedestrian Icon',
     footStartLabel: 'Sightseeing start',
     startWalk: '▶ Start walk',
+    // Pocket lock
+    pocketLockSection: 'Screen lock',
+    pocketLockGestureLabel: 'Unlock gesture',
+    pocketLockGestureSwipe: 'Swipe up',
+    pocketLockGestureHold: 'Hold (1.5 s)',
+    pocketLockHintSwipe: 'Swipe up to unlock',
+    pocketLockHintHold: 'Hold to unlock',
+    pocketLockBtn: '🔒 Lock screen',
   },
   fr: {
     noRoute: 'Aucun itinéraire',
@@ -334,6 +342,14 @@ const translations = {
     footIcon: 'Icône piéton',
     footStartLabel: 'Départ de la visite',
     startWalk: '▶ Démarrer la visite',
+    // Pocket lock
+    pocketLockSection: 'Verrouillage écran',
+    pocketLockGestureLabel: 'Geste de déverrouillage',
+    pocketLockGestureSwipe: 'Glisser vers le haut',
+    pocketLockGestureHold: 'Maintenir (1,5 s)',
+    pocketLockHintSwipe: 'Glisser vers le haut pour déverrouiller',
+    pocketLockHintHold: 'Maintenir pour déverrouiller',
+    pocketLockBtn: '🔒 Verrouiller l\'écran',
   }
 }
 
