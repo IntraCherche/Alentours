@@ -21,10 +21,20 @@ const { lang } = useLocale()
 export function useNearbyTowns() {
   const towns       = ref([])
   const loading     = ref(false)
-  const prefetching = ref(false)
-  const prefetchProgress = ref(0)   // 0–100 for UI feedback
+  const prefetching        = ref(false)
+  const prefetchProgress   = ref(0)   // 0–100 for UI feedback
   const prefetchCurrentTown = ref('')
-  const error       = ref(null)
+  const prefetchCancelling = ref(false)
+  const error              = ref(null)
+
+  const _cancelRequested = ref(false)
+
+  function cancelPrefetch() {
+    if (prefetching.value) {
+      _cancelRequested.value   = true
+      prefetchCancelling.value = true
+    }
+  }
 
   // In-memory cache: OSM id → enriched town object
   let townCache = {}
@@ -32,9 +42,11 @@ export function useNearbyTowns() {
   // ── 1. PRE-FETCH for entire route ────────────────────────────────
   async function prefetchForRoute(samplePoints, corridorRadiusM = 15000) {
     if (!samplePoints.length) return
-    prefetching.value = true
-    prefetchProgress.value = 0
-    error.value = null
+    prefetching.value        = true
+    prefetchProgress.value   = 0
+    prefetchCancelling.value = false
+    _cancelRequested.value   = false
+    error.value              = null
 
     let fakeInterval = null
     let townCycler = null
@@ -109,9 +121,12 @@ export function useNearbyTowns() {
       // Fetch Wikipedia summaries only for towns not already in the persistent cache
       const wikiBatch = 20
       for (let i = 0; i < needsWiki.length; i += wikiBatch) {
+        if (_cancelRequested.value) return
         await fetchWikiSummaryBatch(needsWiki.slice(i, i + wikiBatch), lang.value)
         prefetchProgress.value = 20 + Math.round(((i + wikiBatch) / Math.max(needsWiki.length, 1)) * 55)
       }
+
+      if (_cancelRequested.value) return
 
       prefetchProgress.value = 75
 
@@ -119,6 +134,8 @@ export function useNearbyTowns() {
       await enrichWithWikidata(needsWiki, lang.value, (pct) => {
         prefetchProgress.value = 75 + Math.round(pct * 25)
       })
+
+      if (_cancelRequested.value) return
 
       // IDB-cached towns skipped enrichWithWikidata — ensure filteredExtract is always present
       for (const t of uniqueList) {
@@ -181,7 +198,9 @@ export function useNearbyTowns() {
       clearInterval(fakeInterval)
       clearInterval(townCycler)
       prefetchCurrentTown.value = ''
-      prefetching.value = false
+      prefetching.value         = false
+      prefetchCancelling.value  = false
+      _cancelRequested.value    = false
     }
   }
 
@@ -460,8 +479,8 @@ export function useNearbyTowns() {
   }
 
   return {
-    towns, loading, prefetching, prefetchProgress, prefetchCurrentTown, error,
-    prefetchForRoute, fetchNearbyTowns, fetchNearestCity, resetThrottle,
+    towns, loading, prefetching, prefetchProgress, prefetchCurrentTown, prefetchCancelling, error,
+    prefetchForRoute, cancelPrefetch, fetchNearbyTowns, fetchNearestCity, resetThrottle,
     restoreCache, clearCache, exportTownCache, importTownCache
   }
 }

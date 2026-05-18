@@ -160,6 +160,8 @@ const translations = {
     footOfflineNoCache: 'No data downloaded yet — tap Download first',
     footOfflineRadius: 'Offline download radius (km)',
     footOfflineRadiusWarning: 'Large radius significantly increases download time',
+    footOfflineCancelDownload: 'Cancel download',
+    footOfflineCancelling: 'Cancelling… finishing current batch',
     // Foot mode display adaptations
     nearbyMinTimePOI: 'Min. time per landmark',
     replayPOI: '▶ Replay',
@@ -323,6 +325,8 @@ const translations = {
     footOfflineNoCache: 'Aucune donnée téléchargée — appuyez sur Télécharger',
     footOfflineRadius: 'Rayon de téléchargement hors-ligne (km)',
     footOfflineRadiusWarning: 'Un grand rayon augmente significativement le temps de téléchargement',
+    footOfflineCancelDownload: 'Annuler le téléchargement',
+    footOfflineCancelling: 'Annulation… fin du lot en cours',
     // Foot mode display adaptations
     nearbyMinTimePOI: 'Durée min. par monument',
     replayPOI: '▶ Rejouer',

@@ -117,13 +117,25 @@ export function useNearbyPOIs() {
     }
   }
 
+  const cancelRequested    = ref(false)
+  const prefetchCancelling = ref(false)
+
+  function cancelPrefetch() {
+    if (prefetching.value) {
+      cancelRequested.value    = true
+      prefetchCancelling.value = true
+    }
+  }
+
   // Prefetch all POIs within radiusKm of (lat, lng) and store in IndexedDB.
   async function prefetchPOIs(lat, lng, radiusKm) {
-    prefetching.value      = true
-    prefetchProgress.value = 0
-    prefetchTotal.value    = 0
-    prefetchDone.value     = false
-    error.value            = null
+    prefetching.value        = true
+    prefetchProgress.value   = 0
+    prefetchTotal.value      = 0
+    prefetchDone.value       = false
+    cancelRequested.value    = false
+    prefetchCancelling.value = false
+    error.value              = null
 
     try {
       const langCode = lang.value === 'fr' ? 'fr' : 'en'
@@ -143,6 +155,7 @@ export function useNearbyPOIs() {
       prefetchProgress.value = prefetchTotal.value ? Math.round(done / prefetchTotal.value * 100) : 100
 
       for (let i = 0; i < withWiki.length; i += BATCH) {
+        if (cancelRequested.value) return
         const batch = withWiki.slice(i, i + BATCH)
         await fetchPOIExtracts(batch, langCode)
         done += batch.length
@@ -151,13 +164,17 @@ export function useNearbyPOIs() {
           : 100
       }
 
+      if (cancelRequested.value) return
+
       await poiCachePutMany(results, langCode)
       prefetchDone.value     = true
       prefetchProgress.value = 100
     } catch {
       error.value = 'prefetch_error'
     } finally {
-      prefetching.value = false
+      prefetching.value        = false
+      cancelRequested.value    = false
+      prefetchCancelling.value = false
     }
   }
 
@@ -176,7 +193,8 @@ export function useNearbyPOIs() {
   return {
     pois, loading, error,
     prefetching, prefetchProgress, prefetchTotal, prefetchDone,
-    fetchNearbyPOIs, resetThrottle, prefetchPOIs, getCachedCount,
+    prefetchCancelling,
+    fetchNearbyPOIs, resetThrottle, prefetchPOIs, cancelPrefetch, getCachedCount,
     setCacheModeGetter,
   }
 }

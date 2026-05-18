@@ -292,7 +292,11 @@
             <div class="mini-progress">
               <div class="mini-progress__bar" :style="{ width: prefetchProgress + '%' }"></div>
             </div>
-            <p class="meta-text">{{ prefetchProgress }}% · {{ prefetchElapsed }} s — <template v-if="prefetchCurrentTown">{{ t('preloadingWikiFor') }} {{ prefetchCurrentTown }}</template><template v-else>{{ t('queryingMapData') }}</template></p>
+            <p class="meta-text">
+              <template v-if="prefetchCancelling">{{ t('footOfflineCancelling') }}</template>
+              <template v-else>{{ prefetchProgress }}% · {{ prefetchElapsed }} s — <template v-if="prefetchCurrentTown">{{ t('preloadingWikiFor') }} {{ prefetchCurrentTown }}</template><template v-else>{{ t('queryingMapData') }}</template></template>
+            </p>
+            <button v-if="!prefetchCancelling" class="btn btn--small" @click="cancelTownPrefetch">{{ t('footOfflineCancelDownload') }}</button>
           </section>
 
           <!-- Active trip -->
@@ -409,9 +413,13 @@
               <div class="mini-progress__bar" :style="{ width: poiPrefetchProgress + '%' }"></div>
             </div>
             <p class="meta-text">
-              {{ t('footOfflineDownloading').replace('{n}', poiPrefetchTotal) }}
-              · {{ poiPrefetchProgress }}%
+              <template v-if="poiPrefetchCancelling">{{ t('footOfflineCancelling') }}</template>
+              <template v-else>
+                {{ t('footOfflineDownloading').replace('{n}', poiPrefetchTotal) }}
+                · {{ poiPrefetchProgress }}%
+              </template>
             </p>
+            <button v-if="!poiPrefetchCancelling" class="btn btn--small" @click="cancelPOIPrefetch">{{ t('footOfflineCancelDownload') }}</button>
           </section>
 
         </template>
@@ -795,15 +803,16 @@ const {
 } = useRouteProgress()
 
 // ── Nearby towns ───────────────────────────────────────────────────────
-const { towns, loading: townsLoading, prefetching, prefetchProgress, prefetchCurrentTown, prefetchForRoute, fetchNearbyTowns, fetchNearestCity, resetThrottle, restoreCache, clearCache, exportTownCache, importTownCache } = useNearbyTowns()
+const { towns, loading: townsLoading, prefetching, prefetchProgress, prefetchCurrentTown, prefetchCancelling, prefetchForRoute, cancelPrefetch: cancelTownPrefetch, fetchNearbyTowns, fetchNearestCity, resetThrottle, restoreCache, clearCache, exportTownCache, importTownCache } = useNearbyTowns()
 
 // ── Nearby POIs (foot mode) ────────────────────────────────────────────
 const {
   pois, loading: poisLoading, error: poisError,
   prefetching: poiPrefetching, prefetchProgress: poiPrefetchProgress,
   prefetchTotal: poiPrefetchTotal, prefetchDone: poiPrefetchDone,
+  prefetchCancelling: poiPrefetchCancelling,
   fetchNearbyPOIs, resetThrottle: resetPOIThrottle,
-  prefetchPOIs, setCacheModeGetter,
+  prefetchPOIs, cancelPrefetch: cancelPOIPrefetch, setCacheModeGetter,
 } = useNearbyPOIs()
 
 // ── Foot mode ──────────────────────────────────────────────────────────
