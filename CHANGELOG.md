@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.7] — 2026-05-18
+
+### Fixed
+- **Map zoom oscillation in foot mode** — `updateMap` was calling `map.setView` with a hardcoded zoom of 12 on every GPS fix when no route polyline exists (always the case in foot mode). The `effectivePosition` watcher then immediately called `setView` again with the user's follow zoom, causing two competing animations on every tick. The redundant `setView` inside `updateMap` has been removed; the watcher is the sole authority on map position and zoom.
+
+---
+
 ## [1.5.6] — 2026-05-18
 
 ### Fixed

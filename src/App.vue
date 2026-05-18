@@ -1366,10 +1366,6 @@ function updateMap(lat, lng) {
     vehicleMarker.setLatLng([lat, lng])
   }
 
-  // If no route is shown, just follow the vehicle
-  if (!routePolyline) {
-    map.setView([lat, lng], 12, { animate: true, duration: 1 })
-  }
 }
 
 // ── Session persistence helpers ────────────────────────────────────────
