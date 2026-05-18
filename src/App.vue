@@ -299,7 +299,7 @@
           </section>
 
           <!-- Pre-fetching towns -->
-          <section class="drawer-section" v-if="routeLoaded && prefetching">
+          <section class="drawer-section" v-if="routeLoaded && prefetching && !footMode">
             <div class="section-label">{{ t('preloadingTowns') }}</div>
             <div class="mini-progress">
               <div class="mini-progress__bar" :style="{ width: prefetchProgress + '%' }"></div>
@@ -312,7 +312,7 @@
           </section>
 
           <!-- Active trip -->
-          <section class="drawer-section" v-if="routeLoaded && !prefetching">
+          <section class="drawer-section" v-if="routeLoaded && !prefetching && !footMode">
             <div class="section-label">{{ t('activeTrip') }}</div>
             <div class="route-banner">
               <span>{{ origin?.name }}</span>

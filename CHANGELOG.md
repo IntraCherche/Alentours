@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.8] — 2026-05-18
+
+### Fixed
+- **Car trip sections hidden in foot mode** — the "Active trip" and "Pre-fetching towns" sections in the Trip tab were missing a `!footMode` guard, so switching from car mode to foot mode while a route was loaded left those car-specific panels visible. Both sections now hide when foot mode is active.
+
+---
+
 ## [1.5.7] — 2026-05-18
 
 ### Fixed
