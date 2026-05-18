@@ -239,11 +239,11 @@
 
           <!-- Trip setup -->
           <section class="drawer-section" v-if="!routeLoaded">
-            <div class="section-label">{{ t('planTrip') }}</div>
+            <div class="section-label">{{ footMode ? t('footStartLabel') : t('planTrip') }}</div>
 
             <div class="input-group">
               <div class="input-label-row">
-                <label class="input-label">{{ t('fromLabel') }}</label>
+                <label class="input-label" v-if="!footMode">{{ t('fromLabel') }}</label>
                 <button class="btn btn--locate" :disabled="locatingMe" @click="setFromMyLocation">
                   {{ locatingMe ? t('locatingYou') : t('useMyLocation') }}
                 </button>
@@ -258,26 +258,32 @@
               <span v-if="fromPlace" class="resolved">✓ {{ fromPlace.name }}</span>
             </div>
 
-            <div class="invert-row">
-              <button class="btn btn--invert" :disabled="!fromPlace && !toPlace" @click="swapFromTo" :title="t('invertRoute')">⇅</button>
-            </div>
-
-            <div class="input-group">
-              <label class="input-label">{{ t('toLabel') }}</label>
-              <div class="autocomplete">
-                <input class="text-input" v-model="toQuery" :placeholder="t('toPlaceholder')"
-                  @input="onToInput" @keydown.enter="selectFirstTo" />
-                <ul v-if="toSuggestions.length" class="suggestions">
-                  <li v-for="s in toSuggestions" :key="s.lat + s.lng" class="suggestion" @click="selectTo(s)">{{ s.name }}</li>
-                </ul>
+            <template v-if="!footMode">
+              <div class="invert-row">
+                <button class="btn btn--invert" :disabled="!fromPlace && !toPlace" @click="swapFromTo" :title="t('invertRoute')">⇅</button>
               </div>
-              <span v-if="toPlace" class="resolved">✓ {{ toPlace.name }}</span>
-            </div>
 
-            <button class="btn btn--primary" :disabled="!fromPlace || !toPlace || routeLoading" @click="startTrip">
-              {{ routeLoading ? t('buildingRoute') : t('startTrip') }}
+              <div class="input-group">
+                <label class="input-label">{{ t('toLabel') }}</label>
+                <div class="autocomplete">
+                  <input class="text-input" v-model="toQuery" :placeholder="t('toPlaceholder')"
+                    @input="onToInput" @keydown.enter="selectFirstTo" />
+                  <ul v-if="toSuggestions.length" class="suggestions">
+                    <li v-for="s in toSuggestions" :key="s.lat + s.lng" class="suggestion" @click="selectTo(s)">{{ s.name }}</li>
+                  </ul>
+                </div>
+                <span v-if="toPlace" class="resolved">✓ {{ toPlace.name }}</span>
+              </div>
+
+              <button class="btn btn--primary" :disabled="!fromPlace || !toPlace || routeLoading" @click="startTrip">
+                {{ routeLoading ? t('buildingRoute') : t('startTrip') }}
+              </button>
+              <p v-if="routeError" class="error-text">{{ routeError }}</p>
+            </template>
+
+            <button v-if="footMode" class="btn btn--primary" @click="startFootWalk">
+              {{ t('startWalk') }}
             </button>
-            <p v-if="routeError" class="error-text">{{ routeError }}</p>
           </section>
 
           <!-- Pre-fetching towns -->
@@ -1542,6 +1548,18 @@ async function startTrip() {
     settingsOpen.value = false
     persistSession()
   }
+}
+
+async function startFootWalk() {
+  if (fromPlace.value && map && L) {
+    const zoom = ['13', '14', '15'].includes(String(mapFollowZoom.value))
+      ? parseInt(mapFollowZoom.value)
+      : 15
+    map.setView([fromPlace.value.lat, fromPlace.value.lng], zoom, { animate: true })
+  }
+  if (privacyAccepted.value) startGps()
+  await new Promise(r => setTimeout(r, 400))
+  settingsOpen.value = false
 }
 
 function resetTrip() {

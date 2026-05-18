@@ -168,6 +168,8 @@ const translations = {
     replayPOI: '▶ Replay',
     mapFollowZoomFoot: 'Map follow zoom',
     footIcon: 'Pedestrian Icon',
+    footStartLabel: 'Sightseeing start',
+    startWalk: '▶ Start walk',
   },
   fr: {
     noRoute: 'Aucun itinéraire',
@@ -332,6 +334,8 @@ const translations = {
     replayPOI: '▶ Rejouer',
     mapFollowZoomFoot: 'Zoom de suivi',
     footIcon: 'Icône piéton',
+    footStartLabel: 'Départ de la visite',
+    startWalk: '▶ Démarrer la visite',
   }
 }
 
