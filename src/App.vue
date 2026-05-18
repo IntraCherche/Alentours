@@ -85,12 +85,12 @@
     <main class="main">
       <div class="map-wrap" ref="mapContainer"></div>
 
-      <aside class="aside" ref="asideRef">
+      <aside class="aside" :class="{ 'aside--foot': footMode }" ref="asideRef">
       <div
         class="aside-inner"
         ref="asideInnerRef"
-        :class="{ 'aside-inner--scroll': asideScrollDist > 0 }"
-        :style="asideScrollDist > 0 ? { '--aside-dist': `-${asideScrollDist}px`, '--aside-dur': `${asideScrollDur}s` } : {}"
+        :class="{ 'aside-inner--scroll': asideScrollDist > 0 && !footMode }"
+        :style="asideScrollDist > 0 && !footMode ? { '--aside-dist': `-${asideScrollDist}px`, '--aside-dur': `${asideScrollDur}s` } : {}"
       >
 
         <!-- ── FOOT MODE: nearest POI ────────────────────────────── -->
@@ -1861,6 +1861,9 @@ function sideArrow(s) {
   background: var(--bg-panel);
   border-left: 1px solid var(--border);
 }
+.aside--foot {
+  overflow-y: auto;
+}
 
 /* ── Panels ───────────────────────────────────────────────────────── */
 .panel {
@@ -2626,6 +2629,9 @@ function sideArrow(s) {
     max-height: 50vh;
     overflow: hidden; /* animation drives scrolling, no scrollbar */
     gap: 0;           /* aside-inner owns the gap */
+  }
+  .aside--foot {
+    overflow-y: auto;
   }
   .map-wrap {
     order: 2;

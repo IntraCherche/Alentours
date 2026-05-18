@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.4] — 2026-05-18
+
+### Fixed
+- **Foot mode panel now manually scrollable** — the description panel in sightseeing mode overflows with a scrollbar instead of auto-scrolling, so the user can read at their own pace.
+
+---
+
 ## [1.5.3] — 2026-05-18
 
 ### Added
