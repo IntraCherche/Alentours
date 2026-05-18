@@ -1247,7 +1247,8 @@ function drawPlannedRoute() {
       iconSize: [26, 26],
       iconAnchor: [13, 13]
     })
-  }).addTo(map)
+  })
+  if (!footMode.value) startMarker.addTo(map)
 
   endMarker = L.marker([destination.value.lat, destination.value.lng], {
     icon: L.divIcon({
@@ -1256,7 +1257,8 @@ function drawPlannedRoute() {
       iconSize: [26, 26],
       iconAnchor: [13, 13]
     })
-  }).addTo(map)
+  })
+  if (!footMode.value) endMarker.addTo(map)
 
   fitBoundsToRoute()
 }
