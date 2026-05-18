@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.6] — 2026-05-18
+
+### Fixed
+- **About is now the last menu entry** — the *About* item was moved after *Lock screen* so it sits at the bottom of the menu.
+
+---
+
 ## [1.5.5] — 2026-05-18
 
 ### Fixed
