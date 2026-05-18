@@ -6,9 +6,13 @@
  * enriches results that have a Wikipedia sitelink with their full extract.
  *
  * Throttled to 1 call per 100 m moved OR 60 s elapsed.
+ *
+ * When footCacheMode === 'offline', live network calls are skipped and
+ * results are served from the IndexedDB POI cache instead.
  */
 import { ref } from 'vue'
 import { useLocale } from './useLocale.js'
+import { poiCachePutMany, poiCacheGetAll, poiCacheCount } from './usePOICache.js'
 
 const { lang } = useLocale()
 
@@ -40,13 +44,21 @@ const POI_TYPES = [
 const WIKI_IMG_HOSTS = ['upload.wikimedia.org', 'commons.wikimedia.org']
 
 export function useNearbyPOIs() {
-  const pois    = ref([])
-  const loading = ref(false)
-  const error   = ref(null)
+  const pois             = ref([])
+  const loading          = ref(false)
+  const error            = ref(null)
+  const prefetching      = ref(false)
+  const prefetchProgress = ref(0)
+  const prefetchTotal    = ref(0)
+  const prefetchDone     = ref(false)
 
   let lastQueryLat  = null
   let lastQueryLng  = null
   let lastQueryTime = 0
+
+  // footCacheMode: 'none' | 'offline'  (passed in from App.vue as a plain getter)
+  let getCacheMode = () => 'none'
+  function setCacheModeGetter(fn) { getCacheMode = fn }
 
   async function fetchNearbyPOIs(lat, lng) {
     const now = Date.now()
@@ -60,58 +72,98 @@ export function useNearbyPOIs() {
 
     loading.value = true
     error.value   = null
+
+    if (getCacheMode() === 'offline') {
+      await fetchFromCache(lat, lng)
+    } else {
+      await fetchLive(lat, lng)
+    }
+
+    loading.value = false
+  }
+
+  async function fetchLive(lat, lng) {
     try {
       const langCode = lang.value === 'fr' ? 'fr' : 'en'
-      const sparql   = buildSparql(lng, lat, langCode)
+      const sparql   = buildSparql(lng, lat, langCode, RADIUS_KM, 20)
+      const url      = `${SPARQL_URL}?query=${encodeURIComponent(sparql)}&format=json`
+      const res      = await fetch(url, { headers: { Accept: 'application/sparql-results+json' } })
+      if (!res.ok) throw new Error(`SPARQL ${res.status}`)
+      const data = await res.json()
+      pois.value = parseResults(data, lat, lng)
+      const withWiki = pois.value.filter(p => p.wikiTitle)
+      if (withWiki.length) await fetchPOIExtracts(withWiki, langCode)
+    } catch {
+      error.value = 'Network error'
+    }
+  }
+
+  async function fetchFromCache(lat, lng) {
+    try {
+      const langCode = lang.value === 'fr' ? 'fr' : 'en'
+      const all      = await poiCacheGetAll(langCode)
+      if (!all.length) {
+        error.value = 'no_cache'
+        pois.value  = []
+        return
+      }
+      const nearby = all
+        .map(p => ({ ...p, distance: haversine(lat, lng, p.lat, p.lng) }))
+        .filter(p => p.distance <= RADIUS_KM * 1000)
+        .sort((a, b) => a.distance - b.distance)
+      pois.value = nearby
+    } catch {
+      error.value = 'Network error'
+    }
+  }
+
+  // Prefetch all POIs within radiusKm of (lat, lng) and store in IndexedDB.
+  async function prefetchPOIs(lat, lng, radiusKm) {
+    prefetching.value      = true
+    prefetchProgress.value = 0
+    prefetchTotal.value    = 0
+    prefetchDone.value     = false
+    error.value            = null
+
+    try {
+      const langCode = lang.value === 'fr' ? 'fr' : 'en'
+      const sparql   = buildSparql(lng, lat, langCode, radiusKm, 200)
       const url      = `${SPARQL_URL}?query=${encodeURIComponent(sparql)}&format=json`
       const res      = await fetch(url, { headers: { Accept: 'application/sparql-results+json' } })
       if (!res.ok) throw new Error(`SPARQL ${res.status}`)
       const data = await res.json()
 
-      const seen    = new Set()
-      const results = []
-      for (const row of data.results.bindings) {
-        const qid = row.item?.value?.split('/').pop()
-        if (!qid || seen.has(qid)) continue
-        seen.add(qid)
+      const results = parseResults(data, lat, lng)
+      prefetchTotal.value = results.length
 
-        let poiLat = null, poiLng = null
-        const coordStr = row.coord?.value  // WKT: "Point(lng lat)"
-        if (coordStr) {
-          const m = coordStr.match(/Point\(([-\d.]+)\s+([-\d.]+)\)/)
-          if (m) { poiLng = parseFloat(m[1]); poiLat = parseFloat(m[2]) }
-        }
+      // Fetch Wikipedia extracts in batches of 20 (API limit)
+      const withWiki = results.filter(p => p.wikiTitle)
+      const BATCH    = 20
+      let done       = results.length - withWiki.length
+      prefetchProgress.value = prefetchTotal.value ? Math.round(done / prefetchTotal.value * 100) : 100
 
-        // The article value is the full Wikipedia URL — extract the page title
-        const articleUrl = row.article?.value ?? null
-        const wikiTitle  = articleUrl
-          ? decodeURIComponent(articleUrl.replace(/^.*\/wiki\//, ''))
-          : null
-
-        results.push({
-          id:          qid,
-          name:        row.itemLabel?.value   ?? qid,
-          description: row.itemDescription?.value ?? null,
-          lat:         poiLat,
-          lng:         poiLng,
-          distance:    poiLat != null ? haversine(lat, lng, poiLat, poiLng) : null,
-          image:       safeWikiUrl(row.image?.value),
-          wikiTitle,
-          wiki:        null
-        })
+      for (let i = 0; i < withWiki.length; i += BATCH) {
+        const batch = withWiki.slice(i, i + BATCH)
+        await fetchPOIExtracts(batch, langCode)
+        done += batch.length
+        prefetchProgress.value = prefetchTotal.value
+          ? Math.round(done / prefetchTotal.value * 100)
+          : 100
       }
 
-      results.sort((a, b) => (a.distance ?? Infinity) - (b.distance ?? Infinity))
-
-      const withWiki = results.filter(p => p.wikiTitle)
-      if (withWiki.length) await fetchPOIExtracts(withWiki, langCode)
-
-      pois.value = results
+      await poiCachePutMany(results, langCode)
+      prefetchDone.value     = true
+      prefetchProgress.value = 100
     } catch {
-      error.value = 'Network error'
+      error.value = 'prefetch_error'
     } finally {
-      loading.value = false
+      prefetching.value = false
     }
+  }
+
+  async function getCachedCount() {
+    const langCode = lang.value === 'fr' ? 'fr' : 'en'
+    return poiCacheCount(langCode)
   }
 
   function resetThrottle() {
@@ -121,18 +173,23 @@ export function useNearbyPOIs() {
     pois.value    = []
   }
 
-  return { pois, loading, error, fetchNearbyPOIs, resetThrottle }
+  return {
+    pois, loading, error,
+    prefetching, prefetchProgress, prefetchTotal, prefetchDone,
+    fetchNearbyPOIs, resetThrottle, prefetchPOIs, getCachedCount,
+    setCacheModeGetter,
+  }
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-function buildSparql(lng, lat, langCode) {
+function buildSparql(lng, lat, langCode, radiusKm, limit) {
   return `
 SELECT DISTINCT ?item ?itemLabel ?itemDescription ?coord ?image ?article WHERE {
   SERVICE wikibase:around {
     ?item wdt:P625 ?coord .
     bd:serviceParam wikibase:center "Point(${lng} ${lat})"^^geo:wktLiteral .
-    bd:serviceParam wikibase:radius "${RADIUS_KM}" .
+    bd:serviceParam wikibase:radius "${radiusKm}" .
   }
   ?item wdt:P31 ?type .
   VALUES ?type { ${POI_TYPES} }
@@ -145,8 +202,44 @@ SELECT DISTINCT ?item ?itemLabel ?itemDescription ?coord ?image ?article WHERE {
     bd:serviceParam wikibase:language "${langCode},en" .
   }
 }
-LIMIT 20
+LIMIT ${limit}
 `
+}
+
+function parseResults(data, refLat, refLng) {
+  const seen    = new Set()
+  const results = []
+  for (const row of data.results.bindings) {
+    const qid = row.item?.value?.split('/').pop()
+    if (!qid || seen.has(qid)) continue
+    seen.add(qid)
+
+    let poiLat = null, poiLng = null
+    const coordStr = row.coord?.value
+    if (coordStr) {
+      const m = coordStr.match(/Point\(([-\d.]+)\s+([-\d.]+)\)/)
+      if (m) { poiLng = parseFloat(m[1]); poiLat = parseFloat(m[2]) }
+    }
+
+    const articleUrl = row.article?.value ?? null
+    const wikiTitle  = articleUrl
+      ? decodeURIComponent(articleUrl.replace(/^.*\/wiki\//, ''))
+      : null
+
+    results.push({
+      id:          qid,
+      name:        row.itemLabel?.value        ?? qid,
+      description: row.itemDescription?.value  ?? null,
+      lat:         poiLat,
+      lng:         poiLng,
+      distance:    poiLat != null ? haversine(refLat, refLng, poiLat, poiLng) : null,
+      image:       safeWikiUrl(row.image?.value),
+      wikiTitle,
+      wiki:        null,
+    })
+  }
+  results.sort((a, b) => (a.distance ?? Infinity) - (b.distance ?? Infinity))
+  return results
 }
 
 async function fetchPOIExtracts(poiList, langCode) {
@@ -168,7 +261,6 @@ async function fetchPOIExtracts(poiList, langCode) {
     if (!res.ok) return
     const data = await res.json()
 
-    // Build a flat title→canonical-title map following normalizations + redirects
     const norm = {}
     for (const { from, to } of (data.query?.normalized ?? [])) norm[from] = to
     for (const { from, to } of (data.query?.redirects  ?? [])) norm[norm[from] ?? from] = to
@@ -187,7 +279,6 @@ async function fetchPOIExtracts(poiList, langCode) {
       const wiki     = byTitle[resolved]
       if (!wiki) continue
       poi.wiki = wiki
-      // Prefer the Wikipedia thumbnail if the Wikidata P18 image is missing
       if (!poi.image && wiki.thumbnail) poi.image = wiki.thumbnail
     }
   } catch {}

@@ -106,6 +106,15 @@
           />
           <div v-if="displayedNearestPOI.description" class="town-extract">{{ displayedNearestPOI.description }}</div>
           <div v-if="displayedNearestPOI.wiki?.extract" class="town-extract">{{ displayedNearestPOI.wiki.extract }}</div>
+          <button v-if="ttsEnabled" class="btn btn--small poi-replay-btn" @click="announcePOI(displayedNearestPOI)">
+            {{ t('replayPOI') }}
+          </button>
+        </div>
+
+        <!-- Foot mode: offline mode but no cache downloaded yet -->
+        <div v-else-if="footMode && footCacheMode === 'offline' && poisError === 'no_cache'" class="panel panel--waiting">
+          <div class="waiting-icon">📵</div>
+          <div class="waiting-text">{{ t('footOfflineNoCache') }}</div>
         </div>
 
         <!-- Foot mode: no POI in range -->
@@ -307,7 +316,7 @@
           </section>
 
           <!-- Demo controls (visible when demo mode is enabled and route is ready) -->
-          <section class="drawer-section" v-if="routeLoaded && !prefetching && demoEnabled">
+          <section class="drawer-section" v-if="routeLoaded && !prefetching && demoEnabled && !footMode">
             <div class="section-label">{{ t('demoSection') }}</div>
             <div class="demo-speed-row">
               <span class="demo-speed-label">{{ t('demoSpeedLabel') }}</span>
@@ -337,14 +346,66 @@
             <p v-if="demoError" class="error-text">{{ demoError }}</p>
           </section>
 
-          <!-- Cache mode -->
-          <section class="drawer-section">
+          <!-- Cache mode — car mode -->
+          <section class="drawer-section" v-if="!footMode">
             <div class="section-label">{{ t('cacheMode') }}</div>
             <select class="text-input lang-select" v-model="cacheMode">
               <option value="none">{{ t('cacheModeNone') }}</option>
               <option value="balanced">{{ t('cacheModeBalanced') }}</option>
               <option value="offline">{{ t('cacheModeOffline') }}</option>
             </select>
+          </section>
+
+          <!-- Cache mode — foot mode -->
+          <section class="drawer-section" v-if="footMode">
+            <div class="section-label">{{ t('footCacheMode') }}</div>
+            <select class="text-input lang-select" v-model="footCacheMode">
+              <option value="none">{{ t('footCacheModeNone') }}</option>
+              <option value="offline">{{ t('footCacheModeOffline') }}</option>
+            </select>
+          </section>
+
+          <!-- Foot offline: location picker + download -->
+          <section class="drawer-section" v-if="footMode && footCacheMode === 'offline' && !poiPrefetching">
+            <div class="section-label">{{ t('footOfflineLocation') }}</div>
+            <div class="input-group">
+              <div class="input-label-row">
+                <button class="btn btn--locate" :disabled="locatingMe" @click="setFootOfflineMyLocation">
+                  {{ locatingMe ? t('locatingYou') : t('useMyLocation') }}
+                </button>
+              </div>
+              <div class="autocomplete">
+                <input class="text-input" v-model="footOfflineQuery"
+                  :placeholder="t('fromPlaceholder')"
+                  @input="onFootOfflineInput" @keydown.enter="selectFirstFootOffline" />
+                <ul v-if="footOfflineSuggestions.length" class="suggestions">
+                  <li v-for="s in footOfflineSuggestions" :key="s.lat + s.lng"
+                    class="suggestion" @click="selectFootOfflinePlace(s)">{{ s.name }}</li>
+                </ul>
+              </div>
+              <span v-if="footOfflinePlace" class="resolved">✓ {{ footOfflinePlace.name }}</span>
+            </div>
+            <button class="btn btn--primary"
+              :disabled="!footOfflinePlace"
+              @click="startFootOfflineDownload">
+              {{ t('footOfflineDownload') }}
+            </button>
+            <p v-if="footOfflineCachedCount > 0" class="meta-text">
+              {{ t('footOfflineDone').replace('{n}', footOfflineCachedCount) }}
+            </p>
+            <p v-if="footOfflineError" class="error-text">{{ t(footOfflineError) }}</p>
+          </section>
+
+          <!-- Foot offline: download in progress -->
+          <section class="drawer-section" v-if="footMode && footCacheMode === 'offline' && poiPrefetching">
+            <div class="section-label">{{ t('footOfflineDownload') }}</div>
+            <div class="mini-progress">
+              <div class="mini-progress__bar" :style="{ width: poiPrefetchProgress + '%' }"></div>
+            </div>
+            <p class="meta-text">
+              {{ t('footOfflineDownloading').replace('{n}', poiPrefetchTotal) }}
+              · {{ poiPrefetchProgress }}%
+            </p>
           </section>
 
         </template>
@@ -393,8 +454,8 @@
             <div class="size-preview">{{ displayedNearest?.name ?? 'Lyon' }}</div>
           </section>
 
-          <!-- Vehicle icon -->
-          <section class="drawer-section">
+          <!-- Vehicle icon (car mode only) -->
+          <section class="drawer-section" v-if="!footMode">
             <div class="section-label">{{ t('vehicleIcon') }}</div>
             <div class="icon-picker">
               <button
@@ -408,8 +469,23 @@
             </div>
           </section>
 
-          <!-- Map follow zoom -->
-          <section class="drawer-section">
+          <!-- Pedestrian icon (foot mode only) -->
+          <section class="drawer-section" v-if="footMode">
+            <div class="section-label">{{ t('footIcon') }}</div>
+            <div class="icon-picker">
+              <button
+                v-for="ic in footIcons"
+                :key="ic.value"
+                class="icon-pick-btn"
+                :class="{ active: footIcon === ic.value }"
+                @click="footIcon = ic.value"
+                :title="ic.label"
+              >{{ ic.value }}</button>
+            </div>
+          </section>
+
+          <!-- Map follow zoom — car mode: all options -->
+          <section class="drawer-section" v-if="!footMode">
             <div class="section-label">{{ t('mapFollowZoom') }}</div>
             <select class="text-input lang-select" v-model="mapFollowZoom">
               <option value="overview">{{ t('mapZoomOverview') }}</option>
@@ -423,8 +499,18 @@
             </select>
           </section>
 
-          <!-- Nearby place-type filter -->
-          <section class="drawer-section">
+          <!-- Map follow zoom — foot mode: close/very close only -->
+          <section class="drawer-section" v-if="footMode">
+            <div class="section-label">{{ t('mapFollowZoomFoot') }}</div>
+            <select class="text-input lang-select" v-model="mapFollowZoom">
+              <option value="13">{{ t('mapZoom13') }}</option>
+              <option value="14">{{ t('mapZoom14') }}</option>
+              <option value="15">{{ t('mapZoom15') }}</option>
+            </select>
+          </section>
+
+          <!-- Nearby place-type filter (car mode only) -->
+          <section class="drawer-section" v-if="!footMode">
             <div class="section-label">{{ t('minPlaceSize') }}</div>
             <select class="text-input lang-select" v-model="minPlaceType">
               <option value="all">{{ t('placeFilterAll') }}</option>
@@ -433,9 +519,9 @@
             </select>
           </section>
 
-          <!-- Nearby city min. display time -->
+          <!-- Min. display time — label adapts between car and foot mode -->
           <section class="drawer-section">
-            <div class="section-label">{{ t('nearbyMinTime') }}</div>
+            <div class="section-label">{{ footMode ? t('nearbyMinTimePOI') : t('nearbyMinTime') }}</div>
             <select class="text-input lang-select" v-model.number="nearbyMinDuration">
               <option :value="0">{{ t('displayRefreshOff') }}</option>
               <option :value="30">{{ t('displayRefreshQuick') }}</option>
@@ -459,8 +545,8 @@
             </select>
           </section>
 
-          <!-- Read description aloud (car mode) -->
-          <section class="drawer-section">
+          <!-- Read description aloud (car mode only) -->
+          <section class="drawer-section" v-if="!footMode">
             <div class="section-label">{{ t('ttsReadDescription') }}</div>
             <select class="text-input lang-select" v-model="ttsReadDescription">
               <option :value="false">{{ t('ttsOff') }}</option>
@@ -486,12 +572,22 @@
             <div class="section-label">{{ t('osrmTimeoutLabel') }}</div>
             <input type="number" class="number-input" min="5" max="120" step="1" v-model.number="osrmTimeout" />
           </section>
-          <section class="drawer-section" v-if="demoUnlocked">
+          <section class="drawer-section" v-if="demoUnlocked && !footMode">
             <div class="section-label">{{ t('demoSection') }}</div>
             <label class="toggle-label">
               <input type="checkbox" v-model="demoEnabled" />
               {{ t('demoModeEnable') }}
             </label>
+          </section>
+
+          <!-- Foot mode offline download radius -->
+          <section class="drawer-section" v-if="footMode">
+            <div class="section-label">{{ t('footOfflineRadius') }}</div>
+            <input type="number" class="number-input" min="1" max="20" step="1"
+              v-model.number="footOfflineRadiusKm" />
+            <p v-if="footOfflineRadiusKm > 7" class="meta-text meta-text--warn">
+              {{ t('footOfflineRadiusWarning') }}
+            </p>
           </section>
         </template>
 
@@ -563,6 +659,7 @@ import { useSession } from './composables/useSession.js'
 import { useTrips } from './composables/useTrips.js'
 import { useDemoMode } from './composables/useDemoMode.js'
 import { geocodeSuggestions, reverseGeocode } from './composables/useGeocoding.js'
+import { poiCacheCount, poiCacheClear } from './composables/usePOICache.js'
 import TripTabs from './components/TripTabs.vue'
 
 // ── App version (injected by Vite from package.json) ──────────────────
@@ -695,7 +792,13 @@ const {
 const { towns, loading: townsLoading, prefetching, prefetchProgress, prefetchCurrentTown, prefetchForRoute, fetchNearbyTowns, fetchNearestCity, resetThrottle, restoreCache, clearCache, exportTownCache, importTownCache } = useNearbyTowns()
 
 // ── Nearby POIs (foot mode) ────────────────────────────────────────────
-const { pois, loading: poisLoading, fetchNearbyPOIs, resetThrottle: resetPOIThrottle } = useNearbyPOIs()
+const {
+  pois, loading: poisLoading, error: poisError,
+  prefetching: poiPrefetching, prefetchProgress: poiPrefetchProgress,
+  prefetchTotal: poiPrefetchTotal, prefetchDone: poiPrefetchDone,
+  fetchNearbyPOIs, resetThrottle: resetPOIThrottle,
+  prefetchPOIs, setCacheModeGetter,
+} = useNearbyPOIs()
 
 // ── Foot mode ──────────────────────────────────────────────────────────
 const footMode = ref(localStorage.getItem('foot-mode') === 'true')
@@ -703,9 +806,101 @@ watch(footMode, (v) => {
   localStorage.setItem('foot-mode', String(v))
   clearAnnounced()
   resetPOIThrottle()
+  // Clamp map zoom to foot-mode range when entering foot mode
+  if (v && !['13', '14', '15'].includes(String(mapFollowZoom.value))) {
+    mapFollowZoom.value = '15'
+  }
+  // Hide route A/B markers in foot mode, restore when leaving
+  if (map && L) {
+    if (v) {
+      if (startMarker) map.removeLayer(startMarker)
+      if (endMarker)   map.removeLayer(endMarker)
+    } else {
+      if (startMarker) startMarker.addTo(map)
+      if (endMarker)   endMarker.addTo(map)
+    }
+  }
+  // Update the position marker icon to match the active mode
+  if (vehicleMarker && L) {
+    vehicleMarker.setIcon(makeVehicleIcon(v ? footIcon.value : vehicleIcon.value))
+  }
 })
 // Re-fetch POIs in the new language as soon as the user switches
 watch(lang, () => { if (footMode.value) resetPOIThrottle() })
+
+// ── Foot mode offline cache ────────────────────────────────────────────
+const footCacheMode = ref(localStorage.getItem('footCacheMode') || 'none')
+watch(footCacheMode, (v) => {
+  localStorage.setItem('footCacheMode', v)
+  resetPOIThrottle()
+})
+setCacheModeGetter(() => footCacheMode.value)
+
+const footOfflineRadiusKm  = ref(parseInt(localStorage.getItem('footOfflineRadius') || '5', 10))
+watch(footOfflineRadiusKm, v => localStorage.setItem('footOfflineRadius', String(v)))
+
+const footOfflineQuery       = ref('')
+const footOfflineSuggestions = ref([])
+const footOfflinePlace       = ref(null)
+const footOfflineCachedCount = ref(0)
+const footOfflineError       = ref(null)
+let footOfflineTimer         = null
+
+// Initialise cached count display on load
+poiCacheCount(lang.value === 'fr' ? 'fr' : 'en').then(n => { footOfflineCachedCount.value = n })
+watch([lang, poiPrefetchDone], async () => {
+  const langCode = lang.value === 'fr' ? 'fr' : 'en'
+  footOfflineCachedCount.value = await poiCacheCount(langCode)
+})
+
+function onFootOfflineInput() {
+  clearTimeout(footOfflineTimer)
+  footOfflinePlace.value = null
+  footOfflineTimer = setTimeout(async () => {
+    footOfflineSuggestions.value = await geocodeSuggestions(footOfflineQuery.value)
+  }, 350)
+}
+
+function selectFirstFootOffline() {
+  if (footOfflineSuggestions.value.length) selectFootOfflinePlace(footOfflineSuggestions.value[0])
+}
+
+function selectFootOfflinePlace(place) {
+  footOfflinePlace.value       = place
+  footOfflineQuery.value       = place.name
+  footOfflineSuggestions.value = []
+}
+
+async function setFootOfflineMyLocation() {
+  locatingMe.value = true
+  try {
+    let lat, lng
+    if (position.value) {
+      lat = position.value.lat
+      lng = position.value.lng
+    } else {
+      const pos = await new Promise((resolve, reject) =>
+        navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 8000 })
+      )
+      lat = pos.coords.latitude
+      lng = pos.coords.longitude
+    }
+    const place = await reverseGeocode(lat, lng)
+    selectFootOfflinePlace(place)
+  } catch { /* user can type manually */ } finally {
+    locatingMe.value = false
+  }
+}
+
+async function startFootOfflineDownload() {
+  if (!footOfflinePlace.value) return
+  footOfflineError.value = null
+  const { lat, lng } = footOfflinePlace.value
+  await prefetchPOIs(lat, lng, footOfflineRadiusKm.value)
+  if (poisError.value === 'prefetch_error') {
+    footOfflineError.value = 'footOfflineError'
+  }
+}
 
 const prefetchElapsed = ref(0)
 let prefetchTimer = null
@@ -962,7 +1157,7 @@ function measureAside() {
 const vehicleIcon = ref(localStorage.getItem('vehicleIcon') || '🚐')
 watch(vehicleIcon, (v) => {
   localStorage.setItem('vehicleIcon', v)
-  if (vehicleMarker && L) vehicleMarker.setIcon(makeVehicleIcon(v))
+  if (!footMode.value && vehicleMarker && L) vehicleMarker.setIcon(makeVehicleIcon(v))
 })
 
 const vehicleIcons = [
@@ -971,6 +1166,20 @@ const vehicleIcons = [
   { value: '🚲', label: 'Bicycle' },
   { value: '🏍', label: 'Motorbike' },
   { value: '🚚', label: 'Truck' },
+]
+
+const footIcon = ref(localStorage.getItem('footIcon') || '🚶')
+watch(footIcon, (v) => {
+  localStorage.setItem('footIcon', v)
+  if (footMode.value && vehicleMarker && L) vehicleMarker.setIcon(makeVehicleIcon(v))
+})
+
+const footIcons = [
+  { value: '🚶', label: 'Walking' },
+  { value: '🏃', label: 'Running' },
+  { value: '🧍', label: 'Standing' },
+  { value: '🚴', label: 'Cycling' },
+  { value: '🥾', label: 'Hiking' },
 ]
 
 // ── Map ────────────────────────────────────────────────────────────────
@@ -1087,10 +1296,11 @@ function updateMap(lat, lng) {
     actualPolyline.addLatLng([lat, lng])
   }
 
-  // Update vehicle marker
+  // Update position marker (vehicle icon in car mode, pedestrian icon in foot mode)
+  const activeIcon = footMode.value ? footIcon.value : vehicleIcon.value
   if (!vehicleMarker) {
     vehicleMarker = L.marker([lat, lng], {
-      icon: makeVehicleIcon(vehicleIcon.value)
+      icon: makeVehicleIcon(activeIcon)
     }).addTo(map)
   } else {
     vehicleMarker.setLatLng([lat, lng])
@@ -1985,6 +2195,8 @@ function sideArrow(s) {
 }
 
 .meta-text  { font-size: 0.85rem; color: var(--text-muted); }
+.meta-text--warn { color: var(--accent); }
+.poi-replay-btn { margin-top: 0.6rem; }
 .error-text { font-size: 0.85rem; color: var(--red); }
 
 .lang-select { cursor: pointer; }

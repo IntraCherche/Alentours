@@ -151,6 +151,23 @@ const translations = {
     ttsVerbosityShort: 'Brief (name only)',
     ttsVerbosityNormal: 'Normal (one sentence)',
     ttsVerbosityLong: 'Full description',
+    // Foot mode offline cache
+    footCacheMode: 'Data mode',
+    footCacheModeNone: 'None · live queries',
+    footCacheModeOffline: 'Offline · pre-downloaded',
+    footOfflineLocation: 'Download location',
+    footOfflineDownload: '⬇ Download POIs',
+    footOfflineDownloading: 'Downloading… {n} POIs',
+    footOfflineDone: '{n} POIs cached',
+    footOfflineError: 'Download failed — check connection',
+    footOfflineNoCache: 'No data downloaded yet — tap Download first',
+    footOfflineRadius: 'Offline download radius (km)',
+    footOfflineRadiusWarning: 'Large radius significantly increases download time',
+    // Foot mode display adaptations
+    nearbyMinTimePOI: 'Min. time per landmark',
+    replayPOI: '▶ Replay',
+    mapFollowZoomFoot: 'Map follow zoom',
+    footIcon: 'Pedestrian Icon',
   },
   fr: {
     noRoute: 'Aucun itinéraire',
@@ -298,6 +315,23 @@ const translations = {
     ttsVerbosityShort: 'Bref (nom uniquement)',
     ttsVerbosityNormal: 'Normal (une phrase)',
     ttsVerbosityLong: 'Description complète',
+    // Foot mode offline cache
+    footCacheMode: 'Mode données',
+    footCacheModeNone: 'Aucun · connexion requise',
+    footCacheModeOffline: 'Hors ligne · téléchargé',
+    footOfflineLocation: 'Lieu de téléchargement',
+    footOfflineDownload: '⬇ Télécharger les monuments',
+    footOfflineDownloading: 'Téléchargement… {n} monuments',
+    footOfflineDone: '{n} monuments en cache',
+    footOfflineError: 'Échec du téléchargement — vérifiez la connexion',
+    footOfflineNoCache: 'Aucune donnée téléchargée — appuyez sur Télécharger',
+    footOfflineRadius: 'Rayon de téléchargement hors-ligne (km)',
+    footOfflineRadiusWarning: 'Un grand rayon augmente significativement le temps de téléchargement',
+    // Foot mode display adaptations
+    nearbyMinTimePOI: 'Durée min. par monument',
+    replayPOI: '▶ Rejouer',
+    mapFollowZoomFoot: 'Zoom de suivi',
+    footIcon: 'Icône piéton',
   }
 }
 
