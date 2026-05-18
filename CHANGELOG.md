@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.5] — 2026-05-18
+
+### Fixed
+- **Map zoom no longer oscillates on Android** — the `ResizeObserver` on the map container was unconditionally calling `fitBounds` (overview zoom) on every resize, including Android browser chrome toggling. It now only resets zoom in overview mode; in follow mode it calls `invalidateSize` only.
+
+---
+
 ## [1.5.4] — 2026-05-18
 
 ### Fixed
