@@ -60,7 +60,7 @@ export function useNearbyPOIs() {
   let getCacheMode = () => 'none'
   function setCacheModeGetter(fn) { getCacheMode = fn }
 
-  async function fetchNearbyPOIs(lat, lng) {
+  async function fetchNearbyPOIs(lat, lng, heading) {
     const now = Date.now()
     if (lastQueryLat !== null) {
       const moved = haversine(lat, lng, lastQueryLat, lastQueryLng)
@@ -74,15 +74,15 @@ export function useNearbyPOIs() {
     error.value   = null
 
     if (getCacheMode() === 'offline') {
-      await fetchFromCache(lat, lng)
+      await fetchFromCache(lat, lng, heading)
     } else {
-      await fetchLive(lat, lng)
+      await fetchLive(lat, lng, heading)
     }
 
     loading.value = false
   }
 
-  async function fetchLive(lat, lng) {
+  async function fetchLive(lat, lng, heading) {
     try {
       const langCode = lang.value === 'fr' ? 'fr' : 'en'
       const sparql   = buildSparql(lng, lat, langCode, RADIUS_KM, 20)
@@ -90,7 +90,7 @@ export function useNearbyPOIs() {
       const res      = await fetch(url, { headers: { Accept: 'application/sparql-results+json' } })
       if (!res.ok) throw new Error(`SPARQL ${res.status}`)
       const data = await res.json()
-      pois.value = parseResults(data, lat, lng)
+      pois.value = parseResults(data, lat, lng, heading)
       const withWiki = pois.value.filter(p => p.wikiTitle)
       if (withWiki.length) await fetchPOIExtracts(withWiki, langCode)
     } catch {
@@ -98,7 +98,7 @@ export function useNearbyPOIs() {
     }
   }
 
-  async function fetchFromCache(lat, lng) {
+  async function fetchFromCache(lat, lng, heading) {
     try {
       const langCode = lang.value === 'fr' ? 'fr' : 'en'
       const all      = await poiCacheGetAll(langCode)
@@ -108,7 +108,7 @@ export function useNearbyPOIs() {
         return
       }
       const nearby = all
-        .map(p => ({ ...p, distance: haversine(lat, lng, p.lat, p.lng) }))
+        .map(p => ({ ...p, distance: haversine(lat, lng, p.lat, p.lng), side: computeSide(lat, lng, heading, p.lat, p.lng) }))
         .filter(p => p.distance <= RADIUS_KM * 1000)
         .sort((a, b) => a.distance - b.distance)
       pois.value = nearby
@@ -224,7 +224,7 @@ LIMIT ${limit}
 `
 }
 
-function parseResults(data, refLat, refLng) {
+function parseResults(data, refLat, refLng, heading) {
   const seen    = new Set()
   const results = []
   for (const row of data.results.bindings) {
@@ -251,6 +251,7 @@ function parseResults(data, refLat, refLng) {
       lat:         poiLat,
       lng:         poiLng,
       distance:    poiLat != null ? haversine(refLat, refLng, poiLat, poiLng) : null,
+      side:        poiLat != null ? computeSide(refLat, refLng, heading, poiLat, poiLng) : 'unknown',
       image:       safeWikiUrl(row.image?.value),
       wikiTitle,
       wiki:        null,
@@ -319,4 +320,23 @@ function haversine(lat1, lon1, lat2, lon2) {
   const Δφ = (lat2 - lat1) * Math.PI / 180, Δλ = (lon2 - lon1) * Math.PI / 180
   const a  = Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
+function getBearing(lat1, lng1, lat2, lng2) {
+  const φ1 = lat1 * Math.PI / 180, φ2 = lat2 * Math.PI / 180
+  const Δλ = (lng2 - lng1) * Math.PI / 180
+  const y = Math.sin(Δλ) * Math.cos(φ2)
+  const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ)
+  return ((Math.atan2(y, x) * 180 / Math.PI) + 360) % 360
+}
+
+function computeSide(fromLat, fromLng, heading, toLat, toLng) {
+  if (heading == null) return 'unknown'
+  const bearing = getBearing(fromLat, fromLng, toLat, toLng)
+  let diff = bearing - heading
+  while (diff > 180)  diff -= 360
+  while (diff < -180) diff += 360
+  if (Math.abs(diff) < 30)  return 'ahead'
+  if (Math.abs(diff) > 150) return 'behind'
+  return diff > 0 ? 'right' : 'left'
 }

@@ -98,7 +98,9 @@
           <div class="panel__label">{{ t('nearestPOI') }}</div>
           <div class="town-header">
             <div class="town-name-row">
+              <span v-if="displayedNearestPOI.side !== 'unknown'" class="town-arrow" :class="displayedNearestPOI.side">{{ sideArrow(displayedNearestPOI.side) }}</span>
               <div class="town-name">{{ displayedNearestPOI.name }}</div>
+              <span v-if="displayedNearestPOI.side !== 'unknown'" class="town-arrow" :class="displayedNearestPOI.side">{{ sideArrow(displayedNearestPOI.side) }}</span>
             </div>
           </div>
           <div class="town-dist">{{ t('awayDist').replace('{dist}', formatKm(displayedNearestPOI.distance)) }}</div>
@@ -1174,7 +1176,9 @@ watch(displayedNearestPOI, async (poi) => {
 })
 
 function announcePOI(poi) {
+  const sideKey = { left: 'ttsSideLeft', right: 'ttsSideRight', ahead: 'ttsSideAhead', behind: 'ttsSideBehind' }[poi.side]
   let text = poi.name
+  if (sideKey) text += `, ${t('ttsIsLocated')} ${t(sideKey)}`
   if (poi.description) text += '. ' + poi.description + '.'
 
   if (ttsFootVerbosity.value !== 'short' && poi.wiki?.extract) {
@@ -1506,7 +1510,7 @@ watch(effectivePosition, async (pos) => {
     map.setView([pos.lat, pos.lng], parseInt(mapFollowZoom.value), { animate: true, duration: isDemo ? 0.1 : 1 })
   }
   if (footMode.value) {
-    await fetchNearbyPOIs(pos.lat, pos.lng)
+    await fetchNearbyPOIs(pos.lat, pos.lng, pos.heading)
   } else if (routeLoaded.value) {
     updatePosition(pos.lat, pos.lng)
     if (minPlaceType.value === 'city') {
