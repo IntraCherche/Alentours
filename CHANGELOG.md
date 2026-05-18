@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.5.3] — 2026-05-18
+
+### Added
+- **Pocket lock** — a 🔒 *Lock screen* entry in the top-bar menu covers the screen with a full-screen touch-blocking overlay so the phone can be pocketed without accidental taps. The unlock gesture (swipe up, or hold 1.5 s) is configurable in the Advanced settings tab and defaults to swipe.
+- **Screen Wake Lock** — GPS tracking now requests the Screen Wake Lock API on start, keeping the screen on while driving. The lock is re-acquired automatically if the OS releases it (e.g. after returning from another app).
+
+### Fixed
+- **Pocket lock button always visible** — the lock button now appears in the menu regardless of GPS state; previously it was hidden until GPS was started.
+
+---
+
 ## [1.5.2] — 2026-05-18
 
 ### Fixed

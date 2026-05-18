@@ -21,7 +21,7 @@
                 <span class="menu-item__icon">ⓘ</span>
                 <span>{{ t('about') }}</span>
               </button>
-              <button v-if="watching || demoState === 'running'" class="menu-item" @click="lockScreen(); menuOpen = false">
+              <button class="menu-item" @click="lockScreen(); menuOpen = false">
                 <span class="menu-item__icon">🔒</span>
                 <span>{{ t('pocketLockBtn') }}</span>
               </button>

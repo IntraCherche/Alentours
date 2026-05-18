@@ -35,6 +35,7 @@ Designed to be glanced at from the passenger seat or mounted on a motorhome scre
 - **Demo mode** — hidden easter egg for simulating a drive along a planned route without GPS
 - **Dark / light theme** and EN / FR language, both persisted
 - **Session persistence** — closing and reopening the app resumes the trip exactly where you left off (route, GPS path, position)
+- **Pocket lock** — a 🔒 *Lock screen* button in the top-bar menu covers the screen with a full-screen touch-blocking overlay so the phone can be slipped into a pocket without accidental taps; unlock by swiping up or holding (configurable in Advanced settings); the Screen Wake Lock API keeps the display on while GPS is running so tracking is not interrupted
 - **PWA** — installable on Android and iOS (16.4+), OSM tiles and Wikipedia responses cached for offline use; on iOS a one-time banner reminds the user to disable Auto-Lock while driving
 - **Privacy notice** — a first-launch modal explains which external services receive the device's approximate location (OpenStreetMap, Wikipedia / Wikidata, OSRM); GPS is gated until the user acknowledges it
 
