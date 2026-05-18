@@ -250,9 +250,12 @@
               </div>
               <div class="autocomplete">
                 <input class="text-input" v-model="fromQuery" :placeholder="t('fromPlaceholder')"
-                  @input="onFromInput" @keydown.enter="selectFirstFrom" />
+                  @input="onFromInput" @keydown.enter="selectFirstFrom"
+                  @focus="onFromFocus" @blur="onFromBlur" />
                 <ul v-if="fromSuggestions.length" class="suggestions">
-                  <li v-for="s in fromSuggestions" :key="s.lat + s.lng" class="suggestion" @click="selectFrom(s)">{{ s.name }}</li>
+                  <li v-for="s in fromSuggestions" :key="s.lat + s.lng" class="suggestion" @click="selectFrom(s)">
+                    <span v-if="s.recent" class="suggestion-recent-icon">↩</span>{{ s.name }}
+                  </li>
                 </ul>
               </div>
               <span v-if="fromPlace" class="resolved">✓ {{ fromPlace.name }}</span>
@@ -267,9 +270,12 @@
                 <label class="input-label">{{ t('toLabel') }}</label>
                 <div class="autocomplete">
                   <input class="text-input" v-model="toQuery" :placeholder="t('toPlaceholder')"
-                    @input="onToInput" @keydown.enter="selectFirstTo" />
+                    @input="onToInput" @keydown.enter="selectFirstTo"
+                    @focus="onToFocus" @blur="onToBlur" />
                   <ul v-if="toSuggestions.length" class="suggestions">
-                    <li v-for="s in toSuggestions" :key="s.lat + s.lng" class="suggestion" @click="selectTo(s)">{{ s.name }}</li>
+                    <li v-for="s in toSuggestions" :key="s.lat + s.lng" class="suggestion" @click="selectTo(s)">
+                      <span v-if="s.recent" class="suggestion-recent-icon">↩</span>{{ s.name }}
+                    </li>
                   </ul>
                 </div>
                 <span v-if="toPlace" class="resolved">✓ {{ toPlace.name }}</span>
@@ -387,10 +393,13 @@
               <div class="autocomplete">
                 <input class="text-input" v-model="footOfflineQuery"
                   :placeholder="t('fromPlaceholder')"
-                  @input="onFootOfflineInput" @keydown.enter="selectFirstFootOffline" />
+                  @input="onFootOfflineInput" @keydown.enter="selectFirstFootOffline"
+                  @focus="onFootOfflineFocus" @blur="onFootOfflineBlur" />
                 <ul v-if="footOfflineSuggestions.length" class="suggestions">
                   <li v-for="s in footOfflineSuggestions" :key="s.lat + s.lng"
-                    class="suggestion" @click="selectFootOfflinePlace(s)">{{ s.name }}</li>
+                    class="suggestion" @click="selectFootOfflinePlace(s)">
+                    <span v-if="s.recent" class="suggestion-recent-icon">↩</span>{{ s.name }}
+                  </li>
                 </ul>
               </div>
               <span v-if="footOfflinePlace" class="resolved">✓ {{ footOfflinePlace.name }}</span>
@@ -786,7 +795,7 @@ function dismissIosHint() {
 }
 
 // ── Session ────────────────────────────────────────────────────────────
-const { loadSession, saveSession, clearSession, saveLocations, loadLocations } = useSession()
+const { loadSession, saveSession, clearSession, saveLocations, loadLocations, saveRecentLocation, loadRecentLocations } = useSession()
 
 // ── Trips ──────────────────────────────────────────────────────────────
 const { listTrips, saveTrip, deleteTrip: deleteSavedTrip, getTrip } = useTrips()
@@ -871,10 +880,14 @@ watch([lang, poiPrefetchDone], async () => {
 function onFootOfflineInput() {
   clearTimeout(footOfflineTimer)
   footOfflinePlace.value = null
+  footOfflineSuggestions.value = []
   footOfflineTimer = setTimeout(async () => {
     footOfflineSuggestions.value = await geocodeSuggestions(footOfflineQuery.value)
   }, 350)
 }
+
+function onFootOfflineFocus() { if (!footOfflineQuery.value) footOfflineSuggestions.value = recentAsSuggestions() }
+function onFootOfflineBlur()  { setTimeout(() => { footOfflineSuggestions.value = [] }, 200) }
 
 function selectFirstFootOffline() {
   if (footOfflineSuggestions.value.length) selectFootOfflinePlace(footOfflineSuggestions.value[0])
@@ -884,6 +897,7 @@ function selectFootOfflinePlace(place) {
   footOfflinePlace.value       = place
   footOfflineQuery.value       = place.name
   footOfflineSuggestions.value = []
+  addRecentLocation(place)
 }
 
 async function setFootOfflineMyLocation() {
@@ -1424,6 +1438,7 @@ onMounted(async () => {
       if (locs.toPlace)   { toPlace.value   = locs.toPlace;   toQuery.value   = locs.toPlace.name }
     }
   }
+  recentLocations.value = loadRecentLocations()
   document.addEventListener('visibilitychange', onVisibilityChange)
   const orientationMq = window.matchMedia('(orientation: portrait)')
   orientationMq.addEventListener('change', async () => { await nextTick(); measureAside() })
@@ -1495,18 +1510,36 @@ const fromPlace = ref(null), toPlace = ref(null)
 const fromSuggestions = ref([]), toSuggestions = ref([])
 let fromTimer = null, toTimer = null
 
+const recentLocations = ref([])
+
+function recentAsSuggestions() {
+  return recentLocations.value.map(p => ({ ...p, recent: true }))
+}
+
+function addRecentLocation(place) {
+  saveRecentLocation(place)
+  recentLocations.value = loadRecentLocations()
+}
+
 function onFromInput() {
   fromPlace.value = null
+  fromSuggestions.value = []
   clearTimeout(fromTimer)
   fromTimer = setTimeout(async () => { fromSuggestions.value = await geocodeSuggestions(fromQuery.value) }, 350)
 }
 function onToInput() {
   toPlace.value = null
+  toSuggestions.value = []
   clearTimeout(toTimer)
   toTimer = setTimeout(async () => { toSuggestions.value = await geocodeSuggestions(toQuery.value) }, 350)
 }
-function selectFrom(s) { fromPlace.value = s; fromQuery.value = s.name; fromSuggestions.value = []; saveLocations(s, toPlace.value) }
-function selectTo(s)   { toPlace.value = s;   toQuery.value = s.name;   toSuggestions.value = []; saveLocations(fromPlace.value, s) }
+function onFromFocus() { if (!fromQuery.value) fromSuggestions.value = recentAsSuggestions() }
+function onToFocus()   { if (!toQuery.value)   toSuggestions.value   = recentAsSuggestions() }
+function onFromBlur()  { setTimeout(() => { fromSuggestions.value = [] }, 200) }
+function onToBlur()    { setTimeout(() => { toSuggestions.value = [] }, 200) }
+
+function selectFrom(s) { fromPlace.value = s; fromQuery.value = s.name; fromSuggestions.value = []; saveLocations(s, toPlace.value); addRecentLocation(s) }
+function selectTo(s)   { toPlace.value = s;   toQuery.value = s.name;   toSuggestions.value = []; saveLocations(fromPlace.value, s); addRecentLocation(s) }
 function selectFirstFrom() { if (fromSuggestions.value[0]) selectFrom(fromSuggestions.value[0]) }
 function selectFirstTo()   { if (toSuggestions.value[0])   selectTo(toSuggestions.value[0]) }
 function swapFromTo() {
@@ -2173,6 +2206,7 @@ function sideArrow(s) {
   transition: background 0.15s;
 }
 .suggestion:hover { background: var(--bg-panel); color: var(--text-primary); }
+.suggestion-recent-icon { margin-right: 0.35rem; opacity: 0.45; font-size: 0.8em; }
 .resolved { font-size: 0.8rem; color: var(--green); }
 
 .route-banner {

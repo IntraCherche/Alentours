@@ -1,5 +1,7 @@
 const SESSION_KEY   = 'motorhome-session'
 const LOCATIONS_KEY = 'motorhome-locations'
+const RECENT_KEY    = 'motorhome-recent-locations'
+const MAX_RECENT    = 8
 
 export function useSession() {
   function loadSession() {
@@ -34,5 +36,24 @@ export function useSession() {
     } catch { return null }
   }
 
-  return { loadSession, saveSession, clearSession, saveLocations, loadLocations }
+  function loadRecentLocations() {
+    try {
+      const raw = localStorage.getItem(RECENT_KEY)
+      return raw ? JSON.parse(raw) : []
+    } catch { return [] }
+  }
+
+  function saveRecentLocation(place) {
+    if (!place?.name) return
+    try {
+      const list = loadRecentLocations()
+      const deduped = list.filter(p =>
+        !(Math.abs(p.lat - place.lat) < 0.001 && Math.abs(p.lng - place.lng) < 0.001)
+      )
+      deduped.unshift({ name: place.name, lat: place.lat, lng: place.lng })
+      localStorage.setItem(RECENT_KEY, JSON.stringify(deduped.slice(0, MAX_RECENT)))
+    } catch {}
+  }
+
+  return { loadSession, saveSession, clearSession, saveLocations, loadLocations, saveRecentLocation, loadRecentLocations }
 }
