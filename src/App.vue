@@ -704,6 +704,8 @@ watch(footMode, (v) => {
   clearAnnounced()
   resetPOIThrottle()
 })
+// Re-fetch POIs in the new language as soon as the user switches
+watch(lang, () => { if (footMode.value) resetPOIThrottle() })
 
 const prefetchElapsed = ref(0)
 let prefetchTimer = null

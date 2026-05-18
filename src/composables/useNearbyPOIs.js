@@ -118,6 +118,7 @@ export function useNearbyPOIs() {
     lastQueryLat  = null
     lastQueryLng  = null
     lastQueryTime = 0
+    pois.value    = []
   }
 
   return { pois, loading, error, fetchNearbyPOIs, resetThrottle }

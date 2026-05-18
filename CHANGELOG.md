@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.1] — 2026-05-18
+
+### Fixed
+- **Foot mode language refresh** — switching language while in sightseeing mode now immediately clears the POI cache and re-fetches landmarks in the new language. Previously the throttle prevented re-querying until the user moved 100 m.
+
+---
+
 ## [1.5.0] — 2026-05-18
 
 ### Added
