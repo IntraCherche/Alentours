@@ -1356,6 +1356,8 @@ function buildTripSnapshot() {
     destination:       destination.value,
     routeName:         routeName.value,
     totalDistance:     totalDistance.value,
+    routePoints:       routePoints.value,
+    routeMode:         routeMode.value,
     lastPosition:      position.value ? { lat: position.value.lat, lng: position.value.lng } : null,
     actualPath:        path.length > 500 ? path.slice(-500) : path,
     townsCache:        exportTownCache(),
@@ -1375,6 +1377,8 @@ function persistSession() {
     origin:       origin.value,
     destination:  destination.value,
     routeName:    routeName.value,
+    routePoints:  routePoints.value,
+    routeMode:    routeMode.value,
     lastPosition: position.value ? { lat: position.value.lat, lng: position.value.lng } : null,
     actualPath:   actualPath.value
   })
@@ -1694,6 +1698,8 @@ async function switchToTrip(id) {
     origin:        trip.origin,
     destination:   trip.destination,
     routeName:     trip.routeName,
+    routePoints:   trip.routePoints,
+    routeMode:     trip.routeMode,
     lastPosition:  trip.lastPosition,
     actualPath:    trip.actualPath ?? []
   })

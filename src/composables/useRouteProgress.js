@@ -133,13 +133,13 @@ export function useRouteProgress() {
     return samples
   }
 
-  function restoreRoute({ totalDistance: dist, origin: org, destination: dest, routeName: name }) {
+  function restoreRoute({ totalDistance: dist, origin: org, destination: dest, routeName: name, routePoints: pts, routeMode: mode }) {
     totalDistance.value = dist
     origin.value = org
     destination.value = dest
     routeName.value = name
-    routePoints.value = []
-    routeMode.value = 'straight'
+    routePoints.value = pts ?? []
+    routeMode.value = (pts?.length > 1 && mode === 'osrm') ? 'osrm' : 'straight'
     routeLoaded.value = true
   }
 
