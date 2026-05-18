@@ -208,6 +208,10 @@
               <span v-if="fromPlace" class="resolved">✓ {{ fromPlace.name }}</span>
             </div>
 
+            <div class="invert-row">
+              <button class="btn btn--invert" :disabled="!fromPlace && !toPlace" @click="swapFromTo" :title="t('invertRoute')">⇅</button>
+            </div>
+
             <div class="input-group">
               <label class="input-label">{{ t('toLabel') }}</label>
               <div class="autocomplete">
@@ -1156,6 +1160,13 @@ function selectFrom(s) { fromPlace.value = s; fromQuery.value = s.name; fromSugg
 function selectTo(s)   { toPlace.value = s;   toQuery.value = s.name;   toSuggestions.value = []; saveLocations(fromPlace.value, s) }
 function selectFirstFrom() { if (fromSuggestions.value[0]) selectFrom(fromSuggestions.value[0]) }
 function selectFirstTo()   { if (toSuggestions.value[0])   selectTo(toSuggestions.value[0]) }
+function swapFromTo() {
+  const tmpPlace = fromPlace.value; const tmpQuery = fromQuery.value
+  fromPlace.value = toPlace.value;  fromQuery.value = toQuery.value
+  toPlace.value   = tmpPlace;       toQuery.value   = tmpQuery
+  fromSuggestions.value = [];       toSuggestions.value = []
+  saveLocations(fromPlace.value, toPlace.value)
+}
 
 // ── Trip lifecycle ─────────────────────────────────────────────────────
 async function startTrip() {
@@ -1797,6 +1808,8 @@ function sideArrow(s) {
 .btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .btn--primary { border-color: var(--accent); color: var(--accent); }
 .btn--small   { padding: 0.3rem 0.7rem; font-size: 0.8rem; }
+.invert-row   { display: flex; justify-content: center; margin: 0.1rem 0; }
+.btn--invert  { padding: 0.2rem 0.8rem; font-size: 1.1rem; line-height: 1; }
 
 .mini-progress {
   height: 6px;

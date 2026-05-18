@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.15] — 2026-05-18
+
+### Added
+- **Invert route button** — a ⇅ button between the From and To fields in the Plan Trip section swaps origin and destination in one tap. Both the resolved place and the query text are exchanged; the swapped state is persisted so a page reload keeps the inverted route.
+
+---
+
 ## [1.4.14] — 2026-05-17
 
 ### Added
