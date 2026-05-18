@@ -247,9 +247,9 @@
           <section class="drawer-section" v-if="!routeLoaded">
             <div class="section-label">{{ footMode ? t('footStartLabel') : t('planTrip') }}</div>
 
-            <div class="input-group">
+            <div v-if="!footMode" class="input-group">
               <div class="input-label-row">
-                <label class="input-label" v-if="!footMode">{{ t('fromLabel') }}</label>
+                <label class="input-label">{{ t('fromLabel') }}</label>
                 <button class="btn btn--locate" :disabled="locatingMe" @click="setFromMyLocation">
                   {{ locatingMe ? t('locatingYou') : t('useMyLocation') }}
                 </button>

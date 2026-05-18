@@ -168,7 +168,7 @@ const translations = {
     mapFollowZoomFoot: 'Map follow zoom',
     footIcon: 'Pedestrian Icon',
     footStartLabel: 'Sightseeing start',
-    startWalk: '▶ Start walk',
+    startWalk: '▶ Start walk from my location',
     // Pocket lock
     pocketLockSection: 'Screen lock',
     pocketLockGestureLabel: 'Unlock gesture',
@@ -341,7 +341,7 @@ const translations = {
     mapFollowZoomFoot: 'Zoom de suivi',
     footIcon: 'Icône piéton',
     footStartLabel: 'Départ de la visite',
-    startWalk: '▶ Démarrer la visite',
+    startWalk: '▶ Démarrer depuis ma position',
     // Pocket lock
     pocketLockSection: 'Verrouillage écran',
     pocketLockGestureLabel: 'Geste de déverrouillage',
