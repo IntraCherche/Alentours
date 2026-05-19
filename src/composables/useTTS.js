@@ -9,16 +9,26 @@ watch(ttsEnabled, (v) => localStorage.setItem('tts-enabled', String(v)))
 const announcedAt = new Map()
 const COOLDOWN_MS = 2 * 60 * 60 * 1000
 
+// Held at module scope so the browser cannot GC the utterance before it speaks.
+let _activeUtt = null
+
 export function useTTS() {
   function speak(text, lang = 'en') {
     if (!ttsEnabled.value || !window.speechSynthesis) return
     console.log('[TTS] speak() lang=%s length=%d\n%s', lang, text.length, text)
     const ss  = window.speechSynthesis
     const utt = new SpeechSynthesisUtterance(text)
+    _activeUtt = utt  // prevent GC before the utterance is spoken
     utt.lang  = lang === 'fr' ? 'fr-FR' : 'en-US'
-    // cancel() is asynchronous on mobile browsers — a brief gap is required before speak()
-    ss.cancel()
-    setTimeout(() => ss.speak(utt), 50)
+    if (ss.speaking || ss.pending) {
+      // cancel() is asynchronous on mobile — a brief gap is required before speak()
+      ss.cancel()
+      setTimeout(() => ss.speak(utt), 50)
+    } else {
+      // Nothing was queued: calling cancel() on an idle synthesis breaks it on
+      // Chrome/Android, silently swallowing the next speak() call.
+      ss.speak(utt)
+    }
   }
 
   function shouldAnnounce(id) {

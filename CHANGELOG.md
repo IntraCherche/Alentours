@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.13] — 2026-05-19
+
+### Fixed
+- **Foot mode TTS silent on first announcement** — `speechSynthesis.cancel()` was called unconditionally before every `speak()`, even when nothing was queued. On Chrome/Android, cancelling an idle synthesis corrupts its internal state so the next `speak()` is silently swallowed. Foot-mode POI announcements are typically the first TTS call on the page (nothing previously speaking), so they hit this every time. The fix skips `cancel()` when `!ss.speaking && !ss.pending` and calls `ss.speak()` directly. Also keeps a module-level reference to the `SpeechSynthesisUtterance` to prevent premature GC before the 50 ms deferred speak fires.
+
+---
+
 ## [1.5.12] — 2026-05-19
 
 ### Added
