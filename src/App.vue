@@ -548,18 +548,6 @@
             </select>
           </section>
 
-          <!-- Min. display time — label adapts between car and foot mode -->
-          <section class="drawer-section">
-            <div class="section-label">{{ footMode ? t('nearbyMinTimePOI') : t('nearbyMinTime') }}</div>
-            <select class="text-input lang-select" v-model.number="nearbyMinDuration">
-              <option :value="0">{{ t('displayRefreshOff') }}</option>
-              <option :value="30">{{ t('displayRefreshQuick') }}</option>
-              <option :value="60">{{ t('displayRefreshNormal') }}</option>
-              <option :value="120">{{ t('displayRefreshRelaxed') }}</option>
-              <option :value="300">{{ t('displayRefreshSlow') }}</option>
-            </select>
-          </section>
-
         </template>
 
         <!-- ── TAB: AUDIO ─────────────────────────────────────────── -->
@@ -1068,13 +1056,6 @@ const CORRIDOR_RADII = { balanced: 6000, offline: 25000 }
 const cacheMode = ref(localStorage.getItem('cacheMode') || 'balanced')
 watch(cacheMode, v => localStorage.setItem('cacheMode', v))
 
-// ── Nearby city display lock ───────────────────────────────────────────
-const nearbyMinDuration = ref(parseInt(localStorage.getItem('nearbyMinDuration') || '120', 10))
-watch(nearbyMinDuration, v => {
-  localStorage.setItem('nearbyMinDuration', String(v))
-  tryUpdateDisplayedNearest()
-})
-
 const osrmTimeout = ref(parseInt(localStorage.getItem('osrmTimeout') || '15', 10))
 watch(osrmTimeout, v => localStorage.setItem('osrmTimeout', String(v)))
 
@@ -1086,25 +1067,9 @@ watch(routeTimedOut, (v) => {
 })
 
 const displayedNearest = ref(null)
-let lastDisplayChange = 0
-let pendingDisplayTimer = null
 
 function tryUpdateDisplayedNearest() {
-  const minMs = nearbyMinDuration.value * 1000
-  const elapsed = Date.now() - lastDisplayChange
-  if (minMs === 0 || elapsed >= minMs || !nearest.value) {
-    clearTimeout(pendingDisplayTimer)
-    pendingDisplayTimer = null
-    displayedNearest.value = nearest.value
-    if (nearest.value) lastDisplayChange = Date.now()
-    else lastDisplayChange = 0  // panel is blank — next town should appear without delay
-  } else if (!pendingDisplayTimer) {
-    pendingDisplayTimer = setTimeout(() => {
-      pendingDisplayTimer = null
-      displayedNearest.value = nearest.value
-      if (nearest.value) lastDisplayChange = Date.now()
-    }, minMs - elapsed)
-  }
+  displayedNearest.value = nearest.value
 }
 
 // ── Aside auto-scroll ─────────────────────────────────────────────────
@@ -1480,7 +1445,6 @@ onUnmounted(() => {
   if (mapResizeObserver) mapResizeObserver.disconnect()
   if (asideResizeObserver) asideResizeObserver.disconnect()
   document.removeEventListener('visibilitychange', onVisibilityChange)
-  clearTimeout(pendingDisplayTimer)
   clearInterval(prefetchTimer)
 })
 
