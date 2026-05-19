@@ -13,8 +13,26 @@ import { ref } from 'vue'
 import { useLocale } from './useLocale.js'
 import { wikiCacheGetMany, wikiCachePutMany } from './useWikiCache.js'
 
-const OVERPASS_URL = 'https://overpass-api.de/api/interpreter'
-const cacheKey     = () => `motorhome-towns-cache-${lang.value}`
+const OVERPASS_SERVERS = [
+  'https://overpass-api.de/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter',
+]
+const cacheKey = () => `motorhome-towns-cache-${lang.value}`
+
+async function overpassFetch(query) {
+  const body = 'data=' + encodeURIComponent(query)
+  let lastErr
+  for (const url of OVERPASS_SERVERS) {
+    try {
+      const res = await fetch(url, { method: 'POST', body })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      return res
+    } catch (e) {
+      lastErr = e
+    }
+  }
+  throw lastErr
+}
 
 const { lang } = useLocale()
 
@@ -68,10 +86,7 @@ export function useNearbyTowns() {
         if (prefetchProgress.value < 18) prefetchProgress.value++
       }, 900)
 
-      const res = await fetch(OVERPASS_URL, {
-        method: 'POST',
-        body: 'data=' + encodeURIComponent(query)
-      })
+      const res = await overpassFetch(query)
       const data = await res.json()
 
       clearInterval(fakeInterval)
@@ -282,10 +297,7 @@ export function useNearbyTowns() {
         (node["place"~"city|town|village"]["name"](around:15000,${lat},${lng}););
         out body;
       `
-      const res = await fetch(OVERPASS_URL, {
-        method: 'POST',
-        body: 'data=' + encodeURIComponent(query)
-      })
+      const res = await overpassFetch(query)
       const data = await res.json()
       const elements = data.elements ?? []
 
@@ -436,10 +448,7 @@ export function useNearbyTowns() {
         (node["place"="city"]["name"](around:80000,${lat},${lng}););
         out body;
       `
-      const res = await fetch(OVERPASS_URL, {
-        method: 'POST',
-        body: 'data=' + encodeURIComponent(query)
-      })
+      const res = await overpassFetch(query)
       const data = await res.json()
       const list = (data.elements ?? []).map(el => ({
         id: el.id, name: el.tags.name,
