@@ -1089,25 +1089,35 @@ let lastDisplayChange = 0
 let pendingDisplayTimer = null
 
 function tryUpdateDisplayedNearest() {
-  const minMs = nearbyMinDuration.value * 1000
-  const elapsed = Date.now() - lastDisplayChange
-  if (minMs === 0 || elapsed >= minMs || !displayedNearest.value) {
+  // GPS fetches replace towns array on every fix, producing new object references for the same
+  // town. Guard here so we don't restart the lock timer on every GPS tick.
+  if (nearest.value?.id === displayedNearest.value?.id) {
     clearTimeout(pendingDisplayTimer)
     pendingDisplayTimer = null
-    displayedNearest.value = nearest.value
-    if (nearest.value) lastDisplayChange = Date.now()
-    else lastDisplayChange = 0
-  } else if (!nearest.value) {
-    // leaving a town: clear display immediately, cancel any pending switch
+    return
+  }
+
+  if (!nearest.value) {
     clearTimeout(pendingDisplayTimer)
     pendingDisplayTimer = null
     displayedNearest.value = null
     lastDisplayChange = 0
+    return
+  }
+
+  const minMs = nearbyMinDuration.value * 1000
+  const elapsed = Date.now() - lastDisplayChange
+
+  if (minMs === 0 || elapsed >= minMs || !displayedNearest.value) {
+    clearTimeout(pendingDisplayTimer)
+    pendingDisplayTimer = null
+    displayedNearest.value = nearest.value
+    lastDisplayChange = Date.now()
   } else if (!pendingDisplayTimer) {
+    // Timer reads nearest.value at fire time — shows whoever is actually nearest then.
     pendingDisplayTimer = setTimeout(() => {
       pendingDisplayTimer = null
-      displayedNearest.value = nearest.value  // reads current nearest at fire time, never a queued town
-      if (nearest.value) lastDisplayChange = Date.now()
+      tryUpdateDisplayedNearest()
     }, minMs - elapsed)
   }
 }
@@ -1163,6 +1173,7 @@ function announceTown(town) {
 watch(nearest, tryUpdateDisplayedNearest, { immediate: true })
 
 watch(displayedNearest, async (town) => {
+  asideScrollDist.value = 0
   await nextTick()
   measureAside()
   if (town && shouldAnnounce(town.id)) {
@@ -1172,6 +1183,7 @@ watch(displayedNearest, async (town) => {
 })
 
 watch(displayedNearestPOI, async (poi) => {
+  asideScrollDist.value = 0
   await nextTick()
   measureAside()
   if (poi && shouldAnnounce(poi.id)) {

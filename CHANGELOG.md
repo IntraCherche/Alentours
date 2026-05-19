@@ -1,9 +1,9 @@
 # Changelog
 
-## [1.5.9] — 2026-05-19
+## [1.5.10] — 2026-05-19
 
 ### Fixed
-- **Min. display time setting restored** — the option to set a minimum time a city stays on screen (Immediate / 30 s / 1 min / 2 min / 5 min) was removed in 1.5.8 as part of a queuing bug fix. It is now back with a corrected implementation: when the timer fires it always shows the *currently* nearest town (not a captured snapshot), and leaving a town immediately cancels any pending timer so a stale town can never appear after departure.
+- **Min. display time no longer queues transient cities** — every GPS fetch replaces the towns array with new object references, causing the watch on `nearest` to fire on every GPS tick even when the same town was already displayed. After the lock timer fired and showed city C4, the very next GPS update (same C4, new ref) restarted a fresh timer, which then showed C5, C6, etc. in order long after they had been passed. The fix adds an early-return guard when `nearest.id === displayedNearest.id`, so the timer is only started when the actual nearest town changes. GPS jitter that briefly returns to the displayed town now also cancels any pending switch. The timer callback calls `tryUpdateDisplayedNearest` recursively so it always shows whoever is *currently* nearest when the lock expires, not a captured snapshot.
 
 ---
 
