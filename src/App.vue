@@ -608,8 +608,17 @@
             </select>
           </section>
           <section class="drawer-section">
-            <div class="section-label">{{ t('osrmTimeoutLabel') }}</div>
-            <input type="number" class="number-input" min="5" max="120" step="1" v-model.number="osrmTimeout" />
+            <div class="section-label">{{ t('clearDataLabel') }}</div>
+            <div v-if="!clearDataPending">
+              <button class="btn-danger-outline" @click="clearDataPending = true">{{ t('clearDataBtn') }}</button>
+            </div>
+            <div v-else class="clear-data-confirm">
+              <span class="meta-text">{{ t('clearDataConfirm') }}</span>
+              <div class="clear-data-actions">
+                <button class="btn-neutral" @click="clearDataPending = false">{{ t('clearDataCancel') }}</button>
+                <button class="btn-danger" @click="confirmClearData">{{ t('clearDataConfirmBtn') }}</button>
+              </div>
+            </div>
           </section>
           <section class="drawer-section" v-if="demoUnlocked && !footMode">
             <div class="section-label">{{ t('demoSection') }}</div>
@@ -641,6 +650,11 @@
     <!-- ── OSRM TIMEOUT TOAST ─────────────────────────────────────────── -->
     <Transition name="fade">
       <div v-if="showOsrmTimeoutToast" class="osrm-timeout-toast">{{ t('osrmTimeoutToast') }}</div>
+    </Transition>
+
+    <!-- ── CLEAR DATA TOAST ──────────────────────────────────────────── -->
+    <Transition name="fade">
+      <div v-if="showClearDataToast" class="demo-toast">{{ t('clearDataDone') }}</div>
     </Transition>
 
     <!-- ── ABOUT MODAL ────────────────────────────────────────────── -->
@@ -1077,10 +1091,15 @@ const CORRIDOR_RADII = { balanced: 6000, offline: 25000 }
 const cacheMode = ref(localStorage.getItem('cacheMode') || 'balanced')
 watch(cacheMode, v => localStorage.setItem('cacheMode', v))
 
-const osrmTimeout = ref(parseInt(localStorage.getItem('osrmTimeout') || '15', 10))
-watch(osrmTimeout, v => localStorage.setItem('osrmTimeout', String(v)))
-
 const showOsrmTimeoutToast = ref(false)
+const clearDataPending = ref(false)
+function confirmClearData() {
+  clearDataPending.value = false
+  indexedDB.deleteDatabase('alentours-wiki')
+  showClearDataToast.value = true
+  setTimeout(() => { showClearDataToast.value = false }, 3000)
+}
+const showClearDataToast = ref(false)
 watch(routeTimedOut, (v) => {
   if (!v) return
   showOsrmTimeoutToast.value = true
@@ -1669,7 +1688,7 @@ async function setFromMyLocation() {
 // ── Trip lifecycle ─────────────────────────────────────────────────────
 async function startTrip() {
   activeTab.value = 'trip'
-  await loadRoute(fromPlace.value, toPlace.value, osrmTimeout.value * 1000)
+  await loadRoute(fromPlace.value, toPlace.value, 15000)
   if (routeLoaded.value) {
     const newId = crypto.randomUUID()
     activeTripId.value = newId
@@ -2693,6 +2712,42 @@ function sideArrow(s) {
   color: var(--text);
   font-size: 0.9rem;
   text-align: right;
+}
+.btn-danger-outline {
+  padding: 0.4rem 1rem;
+  border: 1.5px solid #c0392b;
+  border-radius: 8px;
+  background: transparent;
+  color: #c0392b;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.btn-danger {
+  padding: 0.4rem 1rem;
+  border: none;
+  border-radius: 8px;
+  background: #c0392b;
+  color: white;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.btn-neutral {
+  padding: 0.4rem 1rem;
+  border: 1.5px solid var(--border, #ccc);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.clear-data-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.clear-data-actions {
+  display: flex;
+  gap: 0.5rem;
 }
 
 /* ── Portrait layout ──────────────────────────────────────────────── */

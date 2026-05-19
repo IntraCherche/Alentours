@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.5.14] — 2026-05-19
+
+### Changed
+- **Removed OSRM route timeout setting from Advanced** — 15 s is reliable enough that the knob added no value; the value is now hardcoded. The timeout toast (straight-line fallback notice) is kept but no longer references Advanced settings.
+
+### Added
+- **Clear cache button in Advanced settings** — tapping shows an inline confirmation row; confirming deletes the `alentours-wiki` IndexedDB (Wikipedia extracts + POI data) and shows a brief "Cache cleared" toast. Useful when cached data is stale or corrupt.
+
+---
+
 ## [1.5.13] — 2026-05-19
 
 ### Fixed
