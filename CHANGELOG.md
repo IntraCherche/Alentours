@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.12] — 2026-05-19
+
+### Added
+- **POI map marker in foot mode** — when a nearby POI is announced, a purple dot with a permanent name label is placed on the map at the POI's exact coordinates, so the user can immediately see which direction to look without needing an external map app. The marker is replaced when the nearest POI changes and removed when exiting foot mode.
+
+---
+
 ## [1.5.11] — 2026-05-19
 
 ### Fixed

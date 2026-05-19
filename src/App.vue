@@ -874,6 +874,7 @@ watch(footMode, (v) => {
     } else {
       if (startMarker) startMarker.addTo(map)
       if (endMarker)   endMarker.addTo(map)
+      if (poiMarker) { map.removeLayer(poiMarker); poiMarker = null }
     }
   }
   // Update the position marker icon to match the active mode
@@ -1196,6 +1197,7 @@ watch(displayedNearestPOI, async (poi) => {
   asideScrollDist.value = 0
   await nextTick()
   measureAside()
+  if (map && L) drawPOIMarker(poi)
   if (poi && shouldAnnounce(poi.id)) {
     if (poisLoading.value) {
       pendingPOIAnnounce = poi.id
@@ -1287,7 +1289,7 @@ const footIcons = [
 // ── Map ────────────────────────────────────────────────────────────────
 let L = null, map = null
 let vehicleMarker = null, routePolyline = null, actualPolyline = null
-let startMarker = null, endMarker = null
+let startMarker = null, endMarker = null, poiMarker = null
 let mapResizeObserver = null, asideResizeObserver = null
 const mapContainer = ref(null)
 
@@ -1298,6 +1300,23 @@ function makeVehicleIcon(icon) {
     iconSize: [32, 32],
     iconAnchor: [16, 16]
   })
+}
+
+function makePOIIcon() {
+  return L.divIcon({
+    className: '',
+    html: '<div class="poi-marker-dot"></div>',
+    iconSize: [14, 14],
+    iconAnchor: [7, 7],
+  })
+}
+
+function drawPOIMarker(poi) {
+  if (poiMarker) { map?.removeLayer(poiMarker); poiMarker = null }
+  if (!map || !L || !poi?.lat || !poi?.lng) return
+  poiMarker = L.marker([poi.lat, poi.lng], { icon: makePOIIcon() })
+    .bindTooltip(poi.name, { permanent: true, direction: 'top', className: 'poi-label' })
+    .addTo(map)
 }
 
 // ── Actual-path tracking (persisted for session resume) ────────────────
@@ -1369,11 +1388,11 @@ function drawPlannedRoute() {
 }
 
 function clearMapLayers() {
-  for (const layer of [routePolyline, actualPolyline, startMarker, endMarker, vehicleMarker]) {
+  for (const layer of [routePolyline, actualPolyline, startMarker, endMarker, vehicleMarker, poiMarker]) {
     if (layer) map?.removeLayer(layer)
   }
   routePolyline = null; actualPolyline = null
-  startMarker = null; endMarker = null; vehicleMarker = null
+  startMarker = null; endMarker = null; vehicleMarker = null; poiMarker = null
 }
 
 function drawActualPath() {
@@ -2728,4 +2747,31 @@ function sideArrow(s) {
 }
 .route-pin--start { background: #2a9d5c; }
 .route-pin--end   { background: #cc3333; }
+
+/* POI marker (foot mode) */
+.poi-marker-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #7c3aed;
+  border: 2.5px solid white;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+.poi-label {
+  background: rgba(30, 20, 60, 0.85) !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 4px !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  padding: 2px 6px !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4) !important;
+  white-space: nowrap !important;
+  max-width: 150px !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.poi-label::before {
+  border-top-color: rgba(30, 20, 60, 0.85) !important;
+}
 </style>

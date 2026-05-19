@@ -25,6 +25,7 @@ Designed to be glanced at from the passenger seat or mounted on a motorhome scre
   - Queries Wikidata for cultural POIs within 500 m (monuments, museums, churches, castles, archaeological sites, bridges, and more)
   - Enriches results with Wikipedia extracts and thumbnails
   - Announces each new POI via TTS; verbosity is configurable (name only / one sentence / full extract)
+  - Pins the announced POI on the map with a labeled marker so you can see exactly where to look
   - Throttled to one query per 100 m moved or 60 s to avoid hammering the Wikidata endpoint
 - **Place-type filter** — three modes: *All* (village, town, city), *Town & city* (hides hamlets), or *City only* (searches up to 80 km so a city skyline on the horizon is always identified; shows "No city in sight" when none is within range)
 - **Offline-first pre-fetch** — at trip start, all towns along the route are fetched from Overpass, Wikipedia, and Wikidata and cached locally; no further network calls are needed while driving; enrichment data is stored permanently in IndexedDB so revisited towns are instant
