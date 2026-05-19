@@ -788,6 +788,14 @@ async function startDemoMode() {
   if (actualPolyline && map) { map.removeLayer(actualPolyline); actualPolyline = null }
   const ok = await loadDemoRoute(origin.value, destination.value)
   if (ok) {
+    // Reset display state so the first town always shows immediately and with a clean timer,
+    // regardless of how recently the previous demo run ended.
+    clearTimeout(pendingDisplayTimer)
+    pendingDisplayTimer = null
+    displayedNearest.value = null
+    lastDisplayChange = 0
+    resetThrottle()
+    clearAnnounced()
     if (map) {
       if (mapFollowZoom.value === 'overview') fitBoundsToRoute()
       else map.setView([origin.value.lat, origin.value.lng], parseInt(mapFollowZoom.value))

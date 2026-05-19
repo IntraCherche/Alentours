@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.5.11] — 2026-05-19
+
+### Fixed
+- **Demo mode: display state reset on each run** — starting or replaying a demo now clears `displayedNearest`, resets `lastDisplayChange` to zero, cancels any pending timer, resets the town-fetch throttle, and clears the TTS announcement history. Without this, replaying within the min-display window caused the first town to be timer-delayed, which then chained into each subsequent town getting its own timer cycle — reproducing the sequential city accumulation that the 1.5.10 fix addressed for real-mode GPS.
+
 ## [1.5.10] — 2026-05-19
 
 ### Fixed
