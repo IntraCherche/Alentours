@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.9] — 2026-05-19
+
+### Fixed
+- **Min. display time setting restored** — the option to set a minimum time a city stays on screen (Immediate / 30 s / 1 min / 2 min / 5 min) was removed in 1.5.8 as part of a queuing bug fix. It is now back with a corrected implementation: when the timer fires it always shows the *currently* nearest town (not a captured snapshot), and leaving a town immediately cancels any pending timer so a stale town can never appear after departure.
+
+---
+
 ## [1.5.8] — 2026-05-18
 
 ### Fixed

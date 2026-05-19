@@ -548,6 +548,18 @@
             </select>
           </section>
 
+          <!-- Min. display time — label adapts between car and foot mode -->
+          <section class="drawer-section">
+            <div class="section-label">{{ footMode ? t('nearbyMinTimePOI') : t('nearbyMinTime') }}</div>
+            <select class="text-input lang-select" v-model.number="nearbyMinDuration">
+              <option :value="0">{{ t('displayRefreshOff') }}</option>
+              <option :value="30">{{ t('displayRefreshQuick') }}</option>
+              <option :value="60">{{ t('displayRefreshNormal') }}</option>
+              <option :value="120">{{ t('displayRefreshRelaxed') }}</option>
+              <option :value="300">{{ t('displayRefreshSlow') }}</option>
+            </select>
+          </section>
+
         </template>
 
         <!-- ── TAB: AUDIO ─────────────────────────────────────────── -->
@@ -1067,9 +1079,37 @@ watch(routeTimedOut, (v) => {
 })
 
 const displayedNearest = ref(null)
+const nearbyMinDuration = ref(parseInt(localStorage.getItem('nearbyMinDuration') || '120', 10))
+watch(nearbyMinDuration, v => {
+  localStorage.setItem('nearbyMinDuration', String(v))
+  tryUpdateDisplayedNearest()
+})
+
+let lastDisplayChange = 0
+let pendingDisplayTimer = null
 
 function tryUpdateDisplayedNearest() {
-  displayedNearest.value = nearest.value
+  const minMs = nearbyMinDuration.value * 1000
+  const elapsed = Date.now() - lastDisplayChange
+  if (minMs === 0 || elapsed >= minMs || !displayedNearest.value) {
+    clearTimeout(pendingDisplayTimer)
+    pendingDisplayTimer = null
+    displayedNearest.value = nearest.value
+    if (nearest.value) lastDisplayChange = Date.now()
+    else lastDisplayChange = 0
+  } else if (!nearest.value) {
+    // leaving a town: clear display immediately, cancel any pending switch
+    clearTimeout(pendingDisplayTimer)
+    pendingDisplayTimer = null
+    displayedNearest.value = null
+    lastDisplayChange = 0
+  } else if (!pendingDisplayTimer) {
+    pendingDisplayTimer = setTimeout(() => {
+      pendingDisplayTimer = null
+      displayedNearest.value = nearest.value  // reads current nearest at fire time, never a queued town
+      if (nearest.value) lastDisplayChange = Date.now()
+    }, minMs - elapsed)
+  }
 }
 
 // ── Aside auto-scroll ─────────────────────────────────────────────────
