@@ -11,21 +11,29 @@ const COOLDOWN_MS = 2 * 60 * 60 * 1000
 
 // Held at module scope so the browser cannot GC the utterance before it speaks.
 let _activeUtt = null
+let _primeUtt  = null  // same GC protection for the primer utterance
 
 // Chrome requires speechSynthesis.speak() to have been called within a user
 // gesture before it allows calls from non-gesture contexts (GPS events, timers).
 // Register a one-shot capturing listener: on the first tap/click/key, speak a
-// zero-volume space to satisfy that requirement for the rest of the page session.
+// zero-volume dot to satisfy that requirement for the rest of the page session.
+// The utterance is held at module scope to prevent Chrome from GC-ing it mid-
+// synthesis (which would fire synthesis-failed and corrupt the engine state).
 ;(function primeSpeechSynthesis() {
   if (typeof window === 'undefined' || !window.speechSynthesis) return
   const prime = () => {
     document.removeEventListener('click',      prime, true)
     document.removeEventListener('touchstart', prime, true)
     document.removeEventListener('keydown',    prime, true)
-    const utt = new SpeechSynthesisUtterance(' ')
-    utt.volume = 0
-    utt.onerror = () => {}
-    window.speechSynthesis.speak(utt)
+    _primeUtt = new SpeechSynthesisUtterance('.')
+    _primeUtt.volume = 0
+    // Always cancel after the prime ends or fails: Chrome can be left in a
+    // corrupted internal state after a failed synthesis, and cancel() resets it
+    // so subsequent real speak() calls succeed.
+    const resetAfterPrime = () => window.speechSynthesis.cancel()
+    _primeUtt.onend   = resetAfterPrime
+    _primeUtt.onerror = resetAfterPrime
+    window.speechSynthesis.speak(_primeUtt)
   }
   document.addEventListener('click',      prime, true)
   document.addEventListener('touchstart', prime, true)

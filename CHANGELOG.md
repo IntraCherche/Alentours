@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.16] — 2026-05-19
+
+### Fixed
+- **TTS `synthesis-failed` regression from v1.5.15** — The primer introduced in 1.5.15 had two defects that caused every real announcement to fail with `synthesis-failed`: (1) the primer utterance was a local variable and got GC'd by Chrome mid-synthesis, corrupting the engine's internal state; (2) `' '` (space) is treated as empty text by some engines and fails immediately. Both are fixed: the utterance is now held at module scope (like `_activeUtt`) and uses `'.'` instead of a space. Additionally, `speechSynthesis.cancel()` is now called in the primer's `onend`/`onerror` to flush any residual engine error state before the first real announcement — which is what caused the visible symptom (`speaking=false pending=false` yet `speak()` still failing).
+
+---
+
 ## [1.5.15] — 2026-05-19
 
 ### Fixed
