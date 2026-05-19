@@ -12,6 +12,7 @@ const COOLDOWN_MS = 2 * 60 * 60 * 1000
 export function useTTS() {
   function speak(text, lang = 'en') {
     if (!ttsEnabled.value || !window.speechSynthesis) return
+    console.log('[TTS] speak() lang=%s length=%d\n%s', lang, text.length, text)
     const ss  = window.speechSynthesis
     const utt = new SpeechSynthesisUtterance(text)
     utt.lang  = lang === 'fr' ? 'fr-FR' : 'en-US'

@@ -1190,20 +1190,42 @@ watch(displayedNearest, async (town) => {
   }
 })
 
+let pendingPOIAnnounce = null
+
 watch(displayedNearestPOI, async (poi) => {
   asideScrollDist.value = 0
   await nextTick()
   measureAside()
   if (poi && shouldAnnounce(poi.id)) {
-    markAnnounced(poi.id)
-    announcePOI(poi)
+    if (poisLoading.value) {
+      pendingPOIAnnounce = poi.id
+    } else {
+      markAnnounced(poi.id)
+      announcePOI(poi)
+    }
   }
 })
 
+watch(poisLoading, (loading) => {
+  if (loading || !pendingPOIAnnounce) return
+  const poi = displayedNearestPOI.value
+  if (poi && poi.id === pendingPOIAnnounce && shouldAnnounce(poi.id)) {
+    markAnnounced(poi.id)
+    announcePOI(poi)
+  }
+  pendingPOIAnnounce = null
+})
+
 function announcePOI(poi) {
+  console.log('[TTS] announcePOI verbosity=%s wiki=%s extractLen=%d',
+    ttsFootVerbosity.value,
+    poi.wiki ? 'loaded' : 'missing',
+    poi.wiki?.extract?.length ?? 0)
   const sideKey = { left: 'ttsSideLeft', right: 'ttsSideRight', ahead: 'ttsSideAhead', behind: 'ttsSideBehind' }[poi.side]
   let text = poi.name
   if (sideKey) text += `, ${t('ttsIsLocated')} ${t(sideKey)}`
+  const distText = formatDistanceTTS(poi.distance)
+  if (distText) text += ', ' + t('awayDist').replace('{dist}', distText)
   if (poi.description) text += '. ' + poi.description + '.'
 
   if (ttsFootVerbosity.value !== 'short' && poi.wiki?.extract) {
@@ -1781,6 +1803,21 @@ function toggleGps() {
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────
+function formatDistanceTTS(m) {
+  if (!m) return null
+  if (distanceUnit.value === 'imperial') {
+    const mi = m / 1609.344
+    const val = mi >= 10 ? mi.toFixed(0) : mi.toFixed(1)
+    return lang.value === 'fr' ? `${val} miles` : `${val} miles`
+  }
+  if (m >= 1000) {
+    const km = (m / 1000).toFixed(1)
+    return lang.value === 'fr' ? `${km} kilomètres` : `${km} kilometres`
+  }
+  const metres = Math.round(m)
+  return lang.value === 'fr' ? `${metres} mètres` : `${metres} metres`
+}
+
 function formatKm(m) {
   if (!m) return '—'
   if (distanceUnit.value === 'imperial') {
