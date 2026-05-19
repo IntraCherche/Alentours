@@ -170,6 +170,8 @@ const translations = {
     footIcon: 'Pedestrian Icon',
     footStartLabel: 'Sightseeing start',
     startWalk: '▶ Start walk from my location',
+    activeWalk: 'Active walk',
+    newWalk: '🔄 New walk',
     // Pocket lock
     pocketLockSection: 'Screen lock',
     pocketLockGestureLabel: 'Unlock gesture',
@@ -350,6 +352,8 @@ const translations = {
     footIcon: 'Icône piéton',
     footStartLabel: 'Départ de la visite',
     startWalk: '▶ Démarrer depuis ma position',
+    activeWalk: 'Visite en cours',
+    newWalk: '🔄 Nouvelle visite',
     // Pocket lock
     pocketLockSection: 'Verrouillage écran',
     pocketLockGestureLabel: 'Geste de déverrouillage',

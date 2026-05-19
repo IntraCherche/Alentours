@@ -311,6 +311,12 @@
             <button v-if="!prefetchCancelling" class="btn btn--small" @click="cancelTownPrefetch">{{ t('footOfflineCancelDownload') }}</button>
           </section>
 
+          <!-- Active walk -->
+          <section class="drawer-section" v-if="footMode && actualPath.length > 0">
+            <div class="section-label">{{ t('activeWalk') }}</div>
+            <button class="btn btn--small" @click="startFootWalk">{{ t('newWalk') }}</button>
+          </section>
+
           <!-- Active trip -->
           <section class="drawer-section" v-if="routeLoaded && !prefetching && !footMode">
             <div class="section-label">{{ t('activeTrip') }}</div>
@@ -1707,6 +1713,9 @@ async function startTrip() {
 }
 
 async function startFootWalk() {
+  actualPath.value = []
+  if (actualPolyline && map) { map.removeLayer(actualPolyline); actualPolyline = null }
+  clearAnnounced()
   if (fromPlace.value && map && L) {
     const zoom = ['13', '14', '15'].includes(String(mapFollowZoom.value))
       ? parseInt(mapFollowZoom.value)

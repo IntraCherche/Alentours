@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.19] — 2026-05-19
+
+### Added
+- **"New walk" button in foot mode** — opening the Trip settings tab while a walk is in progress now shows an "Active walk" section with a "🔄 New walk" button. Pressing it clears the drawn path on the map and resets announced landmarks so the next walk starts fresh. The existing "Start walk" button also now clears any previous path before beginning.
+
+---
+
 ## [1.5.18] — 2026-05-19
 
 ### Fixed
