@@ -572,6 +572,7 @@
               <option :value="false">{{ t('ttsOff') }}</option>
               <option :value="true">{{ t('ttsOn') }}</option>
             </select>
+            <button v-if="ttsEnabled" class="btn btn--small" style="margin-top:0.5rem" @click="speak(t('ttsTestPhrase'), lang.value)">{{ t('ttsTestBtn') }}</button>
           </section>
 
           <!-- Read description aloud (car mode only) -->

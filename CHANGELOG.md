@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.5.18] — 2026-05-19
+
+### Fixed
+- **TTS `synthesis-failed` / engine corruption** — Repeated `not-allowed` errors throughout a dev session left Chrome's speech synthesis engine in a corrupted state. Two fixes: (1) `speechSynthesis.cancel()` is now called at module init to wipe stale state on every page load or HMR hot-reload; (2) the first-ever speak call (from the gesture unlock handler) is now synchronous — no `setTimeout` — which properly establishes Chrome's sticky activation and prevents the `not-allowed` → corruption chain.
+
+---
+
+## [1.5.17] — 2026-05-19
+
+### Fixed
+- **TTS `not-allowed` on Android/Chrome (root cause)** — GPS watchers fire before the user has tapped anything; calling `speechSynthesis.speak()` from a non-gesture context immediately returns `not-allowed`. The fragile silent-primer approach is replaced by a queue-and-flush strategy: GPS announcements are queued until the first user gesture, then spoken directly inside the gesture handler which grants Chrome "sticky activation" for the rest of the session. All subsequent GPS calls work without needing a gesture context.
+
+### Added
+- **"Test voice" button** in Audio settings — lets you verify TTS is working and also serves as the gesture unlock on first use.
+
+---
+
 ## [1.5.16] — 2026-05-19
 
 ### Fixed

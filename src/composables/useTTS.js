@@ -3,63 +3,87 @@ import { ref, watch } from 'vue'
 const ttsEnabled = ref(localStorage.getItem('tts-enabled') !== 'false')
 watch(ttsEnabled, (v) => localStorage.setItem('tts-enabled', String(v)))
 
-// Per-session deduplication: id → timestamp of last announcement.
-// Applies globally in both car and foot modes — prevents re-announcing the
-// same town or POI for 2 hours (e.g. traffic jam, walking back past a monument).
 const announcedAt = new Map()
 const COOLDOWN_MS = 2 * 60 * 60 * 1000
 
-// Held at module scope so the browser cannot GC the utterance before it speaks.
 let _activeUtt = null
-let _primeUtt  = null  // same GC protection for the primer utterance
+let _primed    = false
+let _pending   = null  // { text, lang }
 
-// Chrome requires speechSynthesis.speak() to have been called within a user
-// gesture before it allows calls from non-gesture contexts (GPS events, timers).
-// Register a one-shot capturing listener: on the first tap/click/key, speak a
-// zero-volume dot to satisfy that requirement for the rest of the page session.
-// The utterance is held at module scope to prevent Chrome from GC-ing it mid-
-// synthesis (which would fire synthesis-failed and corrupt the engine state).
-;(function primeSpeechSynthesis() {
-  if (typeof window === 'undefined' || !window.speechSynthesis) return
-  const prime = () => {
-    document.removeEventListener('click',      prime, true)
-    document.removeEventListener('touchstart', prime, true)
-    document.removeEventListener('keydown',    prime, true)
-    _primeUtt = new SpeechSynthesisUtterance('.')
-    _primeUtt.volume = 0
-    // Always cancel after the prime ends or fails: Chrome can be left in a
-    // corrupted internal state after a failed synthesis, and cancel() resets it
-    // so subsequent real speak() calls succeed.
-    const resetAfterPrime = () => window.speechSynthesis.cancel()
-    _primeUtt.onend   = resetAfterPrime
-    _primeUtt.onerror = resetAfterPrime
-    window.speechSynthesis.speak(_primeUtt)
+function _makeUtt(text, lang) {
+  const utt  = new SpeechSynthesisUtterance(text)
+  _activeUtt = utt
+  utt.lang   = lang === 'fr' ? 'fr-FR' : 'en-US'
+  utt.onstart = () => console.log('[TTS] onstart')
+  utt.onend   = () => console.log('[TTS] onend')
+  utt.onerror = (e) => {
+    console.error('[TTS] onerror', e.error, e)
+    window.speechSynthesis.cancel()  // reset engine state after any error
+    if (e.error === 'not-allowed') {
+      // Sticky activation was lost — wait for next gesture.
+      _primed = false
+      _addUnlockListeners()
+    }
   }
-  document.addEventListener('click',      prime, true)
-  document.addEventListener('touchstart', prime, true)
-  document.addEventListener('keydown',    prime, true)
-})()
+  return utt
+}
+
+// Called SYNCHRONOUSLY within a click/key event — establishes sticky activation.
+function _speakFromGesture(text, lang) {
+  const ss = window.speechSynthesis
+  console.log('[TTS] speakFromGesture voices=%d lang=%s len=%d', ss.getVoices().length, lang, text.length)
+  ss.cancel()        // no-op when idle; clears any stale engine state
+  ss.speak(_makeUtt(text, lang))
+}
+
+// Called from GPS/timer context — relies on sticky activation already granted.
+function _speakFromBackground(text, lang) {
+  const ss = window.speechSynthesis
+  console.log('[TTS] speakFromBackground voices=%d lang=%s len=%d', ss.getVoices().length, lang, text.length)
+  if (ss.paused) ss.resume()
+  ss.cancel()
+  setTimeout(() => ss.speak(_makeUtt(text, lang)), 100)
+}
+
+function _onGesture() {
+  if (_primed) return
+  _primed = true
+  _removeUnlockListeners()
+  console.log('[TTS] gesture unlock — pending=%s', _pending ? 'yes' : 'no')
+  if (_pending) {
+    const { text, lang } = _pending
+    _pending = null
+    _speakFromGesture(text, lang)
+  }
+}
+
+function _addUnlockListeners() {
+  // bubble phase for click: button handlers queue their text first, then we flush
+  // touchstart is NOT a user-activation trigger per HTML spec; click and keydown are
+  document.addEventListener('click',   _onGesture)
+  document.addEventListener('keydown', _onGesture, true)
+}
+
+function _removeUnlockListeners() {
+  document.removeEventListener('click',   _onGesture)
+  document.removeEventListener('keydown', _onGesture, true)
+}
+
+if (typeof window !== 'undefined' && window.speechSynthesis) {
+  // Reset any engine state left over from previous HMR reloads or failed speaks.
+  window.speechSynthesis.cancel()
+  _addUnlockListeners()
+}
 
 export function useTTS() {
   function speak(text, lang = 'en') {
     if (!ttsEnabled.value || !window.speechSynthesis) return
-    const ss = window.speechSynthesis
-    console.log('[TTS] speak() paused=%s speaking=%s pending=%s voices=%d lang=%s length=%d\n%s',
-      ss.paused, ss.speaking, ss.pending, ss.getVoices().length,
-      lang, text.length, text)
-    const utt = new SpeechSynthesisUtterance(text)
-    _activeUtt = utt
-    utt.lang   = lang === 'fr' ? 'fr-FR' : 'en-US'
-    utt.onstart = () => console.log('[TTS] onstart')
-    utt.onend   = () => console.log('[TTS] onend')
-    utt.onerror = (e) => console.error('[TTS] onerror', e.error, e)
-    if (ss.paused) ss.resume()
-    if (ss.speaking || ss.pending) {
-      ss.cancel()
-      setTimeout(() => ss.speak(utt), 50)
-    } else {
-      ss.speak(utt)
+    if (!_primed) {
+      console.log('[TTS] not yet unlocked — queuing (len=%d)', text.length)
+      _pending = { text, lang }
+      return
     }
+    _speakFromBackground(text, lang)
   }
 
   function shouldAnnounce(id) {

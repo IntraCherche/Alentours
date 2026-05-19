@@ -15,7 +15,7 @@
         <div class="tab__bar">
           <div class="tab__fill" :style="{ width: (trip.id === activeTripId && props.liveProgress !== null ? props.liveProgress : (trip.progress ?? 0)) + '%' }"></div>
         </div>
-        <button class="tab__close" @click.stop="$emit('delete', trip.id)" title="Delete trip">×</button>
+        <span class="tab__close" role="button" @click.stop="$emit('delete', trip.id)" title="Delete trip">×</span>
       </button>
     </div>
     <button class="tab-new" @click="$emit('new')" title="New trip">+</button>
