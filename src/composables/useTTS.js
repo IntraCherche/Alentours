@@ -12,6 +12,26 @@ const COOLDOWN_MS = 2 * 60 * 60 * 1000
 // Held at module scope so the browser cannot GC the utterance before it speaks.
 let _activeUtt = null
 
+// Chrome requires speechSynthesis.speak() to have been called within a user
+// gesture before it allows calls from non-gesture contexts (GPS events, timers).
+// Register a one-shot capturing listener: on the first tap/click/key, speak a
+// zero-volume space to satisfy that requirement for the rest of the page session.
+;(function primeSpeechSynthesis() {
+  if (typeof window === 'undefined' || !window.speechSynthesis) return
+  const prime = () => {
+    document.removeEventListener('click',      prime, true)
+    document.removeEventListener('touchstart', prime, true)
+    document.removeEventListener('keydown',    prime, true)
+    const utt = new SpeechSynthesisUtterance(' ')
+    utt.volume = 0
+    utt.onerror = () => {}
+    window.speechSynthesis.speak(utt)
+  }
+  document.addEventListener('click',      prime, true)
+  document.addEventListener('touchstart', prime, true)
+  document.addEventListener('keydown',    prime, true)
+})()
+
 export function useTTS() {
   function speak(text, lang = 'en') {
     if (!ttsEnabled.value || !window.speechSynthesis) return

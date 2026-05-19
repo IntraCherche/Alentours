@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.15] — 2026-05-19
+
+### Fixed
+- **TTS `not-allowed` on Chrome / Chromium** — Chrome requires `speechSynthesis.speak()` to have been called at least once *within* a user gesture before it allows calls from non-gesture contexts (GPS events, timers). Every automatic town/POI announcement was blocked with a `not-allowed` error. The fix registers a one-shot capturing listener (`click` / `touchstart` / `keydown`) on `document` at module load; the first user interaction speaks a zero-volume space, satisfying Chrome's activation requirement for the rest of the page session.
+
+---
+
 ## [1.5.14] — 2026-05-19
 
 ### Changed
