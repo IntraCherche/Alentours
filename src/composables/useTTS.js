@@ -15,18 +15,21 @@ let _activeUtt = null
 export function useTTS() {
   function speak(text, lang = 'en') {
     if (!ttsEnabled.value || !window.speechSynthesis) return
-    console.log('[TTS] speak() lang=%s length=%d\n%s', lang, text.length, text)
-    const ss  = window.speechSynthesis
+    const ss = window.speechSynthesis
+    console.log('[TTS] speak() paused=%s speaking=%s pending=%s voices=%d lang=%s length=%d\n%s',
+      ss.paused, ss.speaking, ss.pending, ss.getVoices().length,
+      lang, text.length, text)
     const utt = new SpeechSynthesisUtterance(text)
-    _activeUtt = utt  // prevent GC before the utterance is spoken
-    utt.lang  = lang === 'fr' ? 'fr-FR' : 'en-US'
+    _activeUtt = utt
+    utt.lang   = lang === 'fr' ? 'fr-FR' : 'en-US'
+    utt.onstart = () => console.log('[TTS] onstart')
+    utt.onend   = () => console.log('[TTS] onend')
+    utt.onerror = (e) => console.error('[TTS] onerror', e.error, e)
+    if (ss.paused) ss.resume()
     if (ss.speaking || ss.pending) {
-      // cancel() is asynchronous on mobile — a brief gap is required before speak()
       ss.cancel()
       setTimeout(() => ss.speak(utt), 50)
     } else {
-      // Nothing was queued: calling cancel() on an idle synthesis breaks it on
-      // Chrome/Android, silently swallowing the next speak() call.
       ss.speak(utt)
     }
   }
