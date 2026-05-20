@@ -9,13 +9,13 @@
           <button class="icon-btn menu-btn" :class="{ active: menuOpen }" @click="menuOpen = !menuOpen" title="Menu">☰</button>
           <Transition name="menu">
             <div v-if="menuOpen" class="menu-dropdown">
+              <button class="menu-item" @click="tripOpen = true; menuOpen = false">
+                <span class="menu-item__icon">{{ footMode ? '🚶' : '🗺' }}</span>
+                <span>{{ t('tabTrip') }}</span>
+              </button>
               <button class="menu-item" @click="settingsOpen = true; menuOpen = false">
                 <span class="menu-item__icon">⚙</span>
                 <span>{{ t('settings') }}</span>
-              </button>
-              <button class="menu-item" @click="footMode = !footMode; menuOpen = false" :class="{ 'menu-item--active': footMode }">
-                <span class="menu-item__icon">🚶</span>
-                <span>{{ footMode ? t('footModeOff') : t('footModeOn') }}</span>
               </button>
               <button class="menu-item" @click="lockScreen(); menuOpen = false">
                 <span class="menu-item__icon">🔒</span>
@@ -210,7 +210,7 @@
             <template v-if="routeLoaded">{{ t('startGpsHint') }}</template>
             <template v-else>
               {{ t('planTripHintPre') }}
-              <button class="inline-gear-btn" @click="settingsOpen = true">⚙</button>
+              <button class="inline-gear-btn" @click="tripOpen = true">⚙</button>
               {{ t('planTripHintPost') }}
               <br><small>{{ t('planTripSub') }}</small>
             </template>
@@ -234,216 +234,10 @@
 
         <!-- Tab bar -->
         <div class="drawer-tabs">
-          <button class="drawer-tab" :class="{ active: activeTab === 'trip' }" @click="activeTab = 'trip'">{{ t('tabTrip') }}</button>
           <button class="drawer-tab" :class="{ active: activeTab === 'display' }" @click="activeTab = 'display'">{{ t('tabDisplay') }}</button>
           <button class="drawer-tab" :class="{ active: activeTab === 'audio' }" @click="activeTab = 'audio'">{{ t('tabAudio') }}</button>
           <button class="drawer-tab" :class="{ active: activeTab === 'advanced' }" @click="onAdvancedTabTap">{{ t('tabAdvanced') }}</button>
         </div>
-
-        <!-- ── TAB: TRIP ──────────────────────────────────────────── -->
-        <template v-if="activeTab === 'trip'">
-
-          <!-- Trip setup -->
-          <section class="drawer-section" v-if="!routeLoaded">
-            <div class="section-label">{{ footMode ? t('footStartLabel') : t('planTrip') }}</div>
-
-            <div v-if="!footMode" class="input-group">
-              <div class="input-label-row">
-                <label class="input-label">{{ t('fromLabel') }}</label>
-                <button class="btn btn--locate" :disabled="locatingMe" @click="setFromMyLocation">
-                  {{ locatingMe ? t('locatingYou') : t('useMyLocation') }}
-                </button>
-              </div>
-              <div class="autocomplete">
-                <input class="text-input" v-model="fromQuery" :placeholder="t('fromPlaceholder')"
-                  @input="onFromInput" @keydown.enter="selectFirstFrom"
-                  @focus="onFromFocus" @blur="onFromBlur" />
-                <ul v-if="fromSuggestions.length" class="suggestions">
-                  <li v-for="s in fromSuggestions" :key="s.lat + s.lng" class="suggestion" @click="selectFrom(s)">
-                    <span v-if="s.recent" class="suggestion-recent-icon">↩</span>{{ s.name }}
-                  </li>
-                </ul>
-              </div>
-              <span v-if="fromPlace" class="resolved">✓ {{ fromPlace.name }}</span>
-            </div>
-
-            <template v-if="!footMode">
-              <div class="invert-row">
-                <button class="btn btn--invert" :disabled="!fromPlace && !toPlace" @click="swapFromTo" :title="t('invertRoute')">⇅</button>
-              </div>
-
-              <div class="input-group">
-                <label class="input-label">{{ t('toLabel') }}</label>
-                <div class="autocomplete">
-                  <input class="text-input" v-model="toQuery" :placeholder="t('toPlaceholder')"
-                    @input="onToInput" @keydown.enter="selectFirstTo"
-                    @focus="onToFocus" @blur="onToBlur" />
-                  <ul v-if="toSuggestions.length" class="suggestions">
-                    <li v-for="s in toSuggestions" :key="s.lat + s.lng" class="suggestion" @click="selectTo(s)">
-                      <span v-if="s.recent" class="suggestion-recent-icon">↩</span>{{ s.name }}
-                    </li>
-                  </ul>
-                </div>
-                <span v-if="toPlace" class="resolved">✓ {{ toPlace.name }}</span>
-              </div>
-
-              <button class="btn btn--primary" :disabled="!fromPlace || !toPlace || routeLoading" @click="startTrip">
-                {{ routeLoading ? t('buildingRoute') : t('startTrip') }}
-              </button>
-              <p v-if="routeError" class="error-text">{{ routeError }}</p>
-            </template>
-
-            <button v-if="footMode" class="btn btn--primary" @click="startFootWalk">
-              {{ t('startWalk') }}
-            </button>
-          </section>
-
-          <!-- Pre-fetching towns -->
-          <section class="drawer-section" v-if="routeLoaded && prefetching && !footMode">
-            <div class="section-label">{{ t('preloadingTowns') }}</div>
-            <div class="mini-progress">
-              <div class="mini-progress__bar" :style="{ width: prefetchProgress + '%' }"></div>
-            </div>
-            <p class="meta-text">
-              <template v-if="prefetchCancelling">{{ t('footOfflineCancelling') }}</template>
-              <template v-else>{{ prefetchProgress }}% · {{ prefetchElapsed }} s — <template v-if="prefetchCurrentTown">{{ t('preloadingWikiFor') }} {{ prefetchCurrentTown }}</template><template v-else>{{ t('queryingMapData') }}</template></template>
-            </p>
-            <button v-if="!prefetchCancelling" class="btn btn--small" @click="cancelTownPrefetch">{{ t('footOfflineCancelDownload') }}</button>
-          </section>
-
-          <!-- Active walk -->
-          <section class="drawer-section" v-if="footMode && actualPath.length > 0">
-            <div class="section-label">{{ t('activeWalk') }}</div>
-            <button class="btn btn--small" @click="startFootWalk">{{ t('newWalk') }}</button>
-          </section>
-
-          <!-- Active trip -->
-          <section class="drawer-section" v-if="routeLoaded && !prefetching && !footMode">
-            <div class="section-label">{{ t('activeTrip') }}</div>
-            <div class="route-banner">
-              <span>{{ origin?.name }}</span>
-              <span class="route-arrow">→</span>
-              <span>{{ destination?.name }}</span>
-            </div>
-            <p class="meta-text">{{ formatKm(totalDistance) }} {{ t('total') }}</p>
-            <button class="btn btn--small" @click="createNewTrip">{{ t('newTrip') }}</button>
-          </section>
-
-          <!-- GPS (hidden when demo mode is active) -->
-          <section class="drawer-section" v-if="(routeLoaded || footMode) && !prefetching && !demoEnabled">
-            <div class="section-label">{{ t('gps') }}</div>
-            <button class="btn" :class="{ active: watching }" @click="toggleGps">
-              {{ watching ? t('stopGps') : t('startGps') }}
-            </button>
-            <p v-if="position" class="meta-text">
-              {{ position.lat.toFixed(5) }}, {{ position.lng.toFixed(5) }}
-              <span v-if="position.speed != null"> · {{ formatSpeed(position.speed) }}</span>
-            </p>
-            <p v-if="geoError" class="error-text">{{ geoError }}</p>
-            <p class="gps-data-note">{{ t('gpsDataNote') }}</p>
-          </section>
-
-          <!-- Demo controls (visible when demo mode is enabled and route is ready) -->
-          <section class="drawer-section" v-if="routeLoaded && !prefetching && demoEnabled && !footMode">
-            <div class="section-label">{{ t('demoSection') }}</div>
-            <div class="demo-speed-row">
-              <span class="demo-speed-label">{{ t('demoSpeedLabel') }}</span>
-              <span class="demo-speed-val">{{ demoSpeed }} km/h</span>
-            </div>
-            <input type="range" class="demo-range" v-model.number="demoSpeed"
-              min="20" max="5000" step="50" />
-            <div class="demo-controls">
-              <template v-if="demoState === 'idle'">
-                <button class="btn btn--primary" :disabled="demoLoading" @click="startDemoMode">
-                  {{ demoLoading ? t('demoLoadingRoute') : t('demoStart') }}
-                </button>
-              </template>
-              <template v-else-if="demoState === 'running'">
-                <button class="btn" @click="pauseDemo">{{ t('demoPause') }}</button>
-                <button class="btn" @click="stopDemoMode">{{ t('demoStop') }}</button>
-              </template>
-              <template v-else-if="demoState === 'paused'">
-                <button class="btn btn--primary" @click="startDemo">{{ t('demoResume') }}</button>
-                <button class="btn" @click="stopDemoMode">{{ t('demoStop') }}</button>
-              </template>
-              <template v-else-if="demoState === 'finished'">
-                <button class="btn btn--primary" @click="startDemo">{{ t('demoReplay') }}</button>
-                <button class="btn" @click="stopDemoMode">{{ t('demoStop') }}</button>
-              </template>
-            </div>
-            <p v-if="demoError" class="error-text">{{ demoError }}</p>
-          </section>
-
-          <!-- Cache mode — car mode -->
-          <section class="drawer-section" v-if="!footMode">
-            <div class="section-label">{{ t('cacheMode') }}</div>
-            <select class="text-input lang-select" v-model="cacheMode">
-              <option value="none">{{ t('cacheModeNone') }}</option>
-              <option value="balanced">{{ t('cacheModeBalanced') }}</option>
-              <option value="offline">{{ t('cacheModeOffline') }}</option>
-            </select>
-          </section>
-
-          <!-- Cache mode — foot mode -->
-          <section class="drawer-section" v-if="footMode">
-            <div class="section-label">{{ t('cacheMode') }}</div>
-            <select class="text-input lang-select" v-model="footCacheMode">
-              <option value="none">{{ t('cacheModeNone') }}</option>
-              <option value="offline">{{ t('cacheModeOffline') }}</option>
-            </select>
-          </section>
-
-          <!-- Foot offline: location picker + download -->
-          <section class="drawer-section" v-if="footMode && footCacheMode === 'offline' && !poiPrefetching">
-            <div class="section-label">{{ t('footOfflineLocation') }}</div>
-            <div class="input-group">
-              <div class="input-label-row">
-                <button class="btn btn--locate" :disabled="locatingMe" @click="setFootOfflineMyLocation">
-                  {{ locatingMe ? t('locatingYou') : t('useMyLocation') }}
-                </button>
-              </div>
-              <div class="autocomplete">
-                <input class="text-input" v-model="footOfflineQuery"
-                  :placeholder="t('fromPlaceholder')"
-                  @input="onFootOfflineInput" @keydown.enter="selectFirstFootOffline"
-                  @focus="onFootOfflineFocus" @blur="onFootOfflineBlur" />
-                <ul v-if="footOfflineSuggestions.length" class="suggestions">
-                  <li v-for="s in footOfflineSuggestions" :key="s.lat + s.lng"
-                    class="suggestion" @click="selectFootOfflinePlace(s)">
-                    <span v-if="s.recent" class="suggestion-recent-icon">↩</span>{{ s.name }}
-                  </li>
-                </ul>
-              </div>
-              <span v-if="footOfflinePlace" class="resolved">✓ {{ footOfflinePlace.name }}</span>
-            </div>
-            <button class="btn btn--primary"
-              :disabled="!footOfflinePlace"
-              @click="startFootOfflineDownload">
-              {{ t('footOfflineDownload') }}
-            </button>
-            <p v-if="footOfflineCachedCount > 0" class="meta-text">
-              {{ t('footOfflineDone').replace('{n}', footOfflineCachedCount) }}
-            </p>
-            <p v-if="footOfflineError" class="error-text">{{ t(footOfflineError) }}</p>
-          </section>
-
-          <!-- Foot offline: download in progress -->
-          <section class="drawer-section" v-if="footMode && footCacheMode === 'offline' && poiPrefetching">
-            <div class="section-label">{{ t('footOfflineDownload') }}</div>
-            <div class="mini-progress">
-              <div class="mini-progress__bar" :style="{ width: poiPrefetchProgress + '%' }"></div>
-            </div>
-            <p class="meta-text">
-              <template v-if="poiPrefetchCancelling">{{ t('footOfflineCancelling') }}</template>
-              <template v-else>
-                {{ t('footOfflineDownloading').replace('{n}', poiPrefetchTotal) }}
-                · {{ poiPrefetchProgress }}%
-              </template>
-            </p>
-            <button v-if="!poiPrefetchCancelling" class="btn btn--small" @click="cancelPOIPrefetch">{{ t('footOfflineCancelDownload') }}</button>
-          </section>
-
-        </template>
 
         <!-- ── TAB: DISPLAY ───────────────────────────────────────── -->
         <template v-if="activeTab === 'display'">
@@ -646,6 +440,233 @@
       </div>
     </Transition>
 
+    <!-- ── TRIP DRAWER ────────────────────────────────────────────── -->
+    <div v-if="tripOpen" class="backdrop" @click="() => { if (!routeLoading && !prefetching) tripOpen = false }"></div>
+
+    <Transition name="drawer">
+      <div class="settings-drawer" v-if="tripOpen">
+
+        <div class="drawer-header">
+          <span class="drawer-title">{{ t('tabTrip') }}</span>
+          <button class="icon-btn" @click="tripOpen = false">✕</button>
+        </div>
+
+        <!-- Travel mode toggle -->
+        <section class="drawer-section">
+          <div class="section-label">{{ t('travelMode') }}</div>
+          <div class="mode-toggle-row">
+            <button class="mode-btn" :class="{ active: !footMode }" @click="footMode = false">
+              🚗 {{ t('carModeLabel') }}
+            </button>
+            <button class="mode-btn" :class="{ active: footMode }" @click="footMode = true">
+              🚶 {{ t('footModeShort') }}
+            </button>
+          </div>
+        </section>
+
+        <!-- Trip setup -->
+        <section class="drawer-section" v-if="!routeLoaded">
+          <div class="section-label">{{ footMode ? t('footStartLabel') : t('planTrip') }}</div>
+
+          <div v-if="!footMode" class="input-group">
+            <div class="input-label-row">
+              <label class="input-label">{{ t('fromLabel') }}</label>
+              <button class="btn btn--locate" :disabled="locatingMe" @click="setFromMyLocation">
+                {{ locatingMe ? t('locatingYou') : t('useMyLocation') }}
+              </button>
+            </div>
+            <div class="autocomplete">
+              <input class="text-input" v-model="fromQuery" :placeholder="t('fromPlaceholder')"
+                @input="onFromInput" @keydown.enter="selectFirstFrom"
+                @focus="onFromFocus" @blur="onFromBlur" />
+              <ul v-if="fromSuggestions.length" class="suggestions">
+                <li v-for="s in fromSuggestions" :key="s.lat + s.lng" class="suggestion" @click="selectFrom(s)">
+                  <span v-if="s.recent" class="suggestion-recent-icon">↩</span>{{ s.name }}
+                </li>
+              </ul>
+            </div>
+            <span v-if="fromPlace" class="resolved">✓ {{ fromPlace.name }}</span>
+          </div>
+
+          <template v-if="!footMode">
+            <div class="invert-row">
+              <button class="btn btn--invert" :disabled="!fromPlace && !toPlace" @click="swapFromTo" :title="t('invertRoute')">⇅</button>
+            </div>
+
+            <div class="input-group">
+              <label class="input-label">{{ t('toLabel') }}</label>
+              <div class="autocomplete">
+                <input class="text-input" v-model="toQuery" :placeholder="t('toPlaceholder')"
+                  @input="onToInput" @keydown.enter="selectFirstTo"
+                  @focus="onToFocus" @blur="onToBlur" />
+                <ul v-if="toSuggestions.length" class="suggestions">
+                  <li v-for="s in toSuggestions" :key="s.lat + s.lng" class="suggestion" @click="selectTo(s)">
+                    <span v-if="s.recent" class="suggestion-recent-icon">↩</span>{{ s.name }}
+                  </li>
+                </ul>
+              </div>
+              <span v-if="toPlace" class="resolved">✓ {{ toPlace.name }}</span>
+            </div>
+
+            <button class="btn btn--primary" :disabled="!fromPlace || !toPlace || routeLoading" @click="startTrip">
+              {{ routeLoading ? t('buildingRoute') : t('startTrip') }}
+            </button>
+            <p v-if="routeError" class="error-text">{{ routeError }}</p>
+          </template>
+
+          <button v-if="footMode" class="btn btn--primary" @click="startFootWalk">
+            {{ t('startWalk') }}
+          </button>
+        </section>
+
+        <!-- Pre-fetching towns -->
+        <section class="drawer-section" v-if="routeLoaded && prefetching && !footMode">
+          <div class="section-label">{{ t('preloadingTowns') }}</div>
+          <div class="mini-progress">
+            <div class="mini-progress__bar" :style="{ width: prefetchProgress + '%' }"></div>
+          </div>
+          <p class="meta-text">
+            <template v-if="prefetchCancelling">{{ t('footOfflineCancelling') }}</template>
+            <template v-else>{{ prefetchProgress }}% · {{ prefetchElapsed }} s — <template v-if="prefetchCurrentTown">{{ t('preloadingWikiFor') }} {{ prefetchCurrentTown }}</template><template v-else>{{ t('queryingMapData') }}</template></template>
+          </p>
+          <button v-if="!prefetchCancelling" class="btn btn--small" @click="cancelTownPrefetch">{{ t('footOfflineCancelDownload') }}</button>
+        </section>
+
+        <!-- Active walk -->
+        <section class="drawer-section" v-if="footMode && actualPath.length > 0">
+          <div class="section-label">{{ t('activeWalk') }}</div>
+          <button class="btn btn--small" @click="startFootWalk">{{ t('newWalk') }}</button>
+        </section>
+
+        <!-- Active trip -->
+        <section class="drawer-section" v-if="routeLoaded && !prefetching && !footMode">
+          <div class="section-label">{{ t('activeTrip') }}</div>
+          <div class="route-banner">
+            <span>{{ origin?.name }}</span>
+            <span class="route-arrow">→</span>
+            <span>{{ destination?.name }}</span>
+          </div>
+          <p class="meta-text">{{ formatKm(totalDistance) }} {{ t('total') }}</p>
+          <button class="btn btn--small" @click="createNewTrip">{{ t('newTrip') }}</button>
+        </section>
+
+        <!-- GPS (hidden when demo mode is active) -->
+        <section class="drawer-section" v-if="(routeLoaded || footMode) && !prefetching && !demoEnabled">
+          <div class="section-label">{{ t('gps') }}</div>
+          <button class="btn" :class="{ active: watching }" @click="toggleGps">
+            {{ watching ? t('stopGps') : t('startGps') }}
+          </button>
+          <p v-if="position" class="meta-text">
+            {{ position.lat.toFixed(5) }}, {{ position.lng.toFixed(5) }}
+            <span v-if="position.speed != null"> · {{ formatSpeed(position.speed) }}</span>
+          </p>
+          <p v-if="geoError" class="error-text">{{ geoError }}</p>
+          <p class="gps-data-note">{{ t('gpsDataNote') }}</p>
+        </section>
+
+        <!-- Demo controls (visible when demo mode is enabled and route is ready) -->
+        <section class="drawer-section" v-if="routeLoaded && !prefetching && demoEnabled && !footMode">
+          <div class="section-label">{{ t('demoSection') }}</div>
+          <div class="demo-speed-row">
+            <span class="demo-speed-label">{{ t('demoSpeedLabel') }}</span>
+            <span class="demo-speed-val">{{ demoSpeed }} km/h</span>
+          </div>
+          <input type="range" class="demo-range" v-model.number="demoSpeed"
+            min="20" max="5000" step="50" />
+          <div class="demo-controls">
+            <template v-if="demoState === 'idle'">
+              <button class="btn btn--primary" :disabled="demoLoading" @click="startDemoMode">
+                {{ demoLoading ? t('demoLoadingRoute') : t('demoStart') }}
+              </button>
+            </template>
+            <template v-else-if="demoState === 'running'">
+              <button class="btn" @click="pauseDemo">{{ t('demoPause') }}</button>
+              <button class="btn" @click="stopDemoMode">{{ t('demoStop') }}</button>
+            </template>
+            <template v-else-if="demoState === 'paused'">
+              <button class="btn btn--primary" @click="startDemo">{{ t('demoResume') }}</button>
+              <button class="btn" @click="stopDemoMode">{{ t('demoStop') }}</button>
+            </template>
+            <template v-else-if="demoState === 'finished'">
+              <button class="btn btn--primary" @click="startDemo">{{ t('demoReplay') }}</button>
+              <button class="btn" @click="stopDemoMode">{{ t('demoStop') }}</button>
+            </template>
+          </div>
+          <p v-if="demoError" class="error-text">{{ demoError }}</p>
+        </section>
+
+        <!-- Cache mode — car mode -->
+        <section class="drawer-section" v-if="!footMode">
+          <div class="section-label">{{ t('cacheMode') }}</div>
+          <select class="text-input lang-select" v-model="cacheMode">
+            <option value="none">{{ t('cacheModeNone') }}</option>
+            <option value="balanced">{{ t('cacheModeBalanced') }}</option>
+            <option value="offline">{{ t('cacheModeOffline') }}</option>
+          </select>
+        </section>
+
+        <!-- Cache mode — foot mode -->
+        <section class="drawer-section" v-if="footMode">
+          <div class="section-label">{{ t('cacheMode') }}</div>
+          <select class="text-input lang-select" v-model="footCacheMode">
+            <option value="none">{{ t('cacheModeNone') }}</option>
+            <option value="offline">{{ t('cacheModeOffline') }}</option>
+          </select>
+        </section>
+
+        <!-- Foot offline: location picker + download -->
+        <section class="drawer-section" v-if="footMode && footCacheMode === 'offline' && !poiPrefetching">
+          <div class="section-label">{{ t('footOfflineLocation') }}</div>
+          <div class="input-group">
+            <div class="input-label-row">
+              <button class="btn btn--locate" :disabled="locatingMe" @click="setFootOfflineMyLocation">
+                {{ locatingMe ? t('locatingYou') : t('useMyLocation') }}
+              </button>
+            </div>
+            <div class="autocomplete">
+              <input class="text-input" v-model="footOfflineQuery"
+                :placeholder="t('fromPlaceholder')"
+                @input="onFootOfflineInput" @keydown.enter="selectFirstFootOffline"
+                @focus="onFootOfflineFocus" @blur="onFootOfflineBlur" />
+              <ul v-if="footOfflineSuggestions.length" class="suggestions">
+                <li v-for="s in footOfflineSuggestions" :key="s.lat + s.lng"
+                  class="suggestion" @click="selectFootOfflinePlace(s)">
+                  <span v-if="s.recent" class="suggestion-recent-icon">↩</span>{{ s.name }}
+                </li>
+              </ul>
+            </div>
+            <span v-if="footOfflinePlace" class="resolved">✓ {{ footOfflinePlace.name }}</span>
+          </div>
+          <button class="btn btn--primary"
+            :disabled="!footOfflinePlace"
+            @click="startFootOfflineDownload">
+            {{ t('footOfflineDownload') }}
+          </button>
+          <p v-if="footOfflineCachedCount > 0" class="meta-text">
+            {{ t('footOfflineDone').replace('{n}', footOfflineCachedCount) }}
+          </p>
+          <p v-if="footOfflineError" class="error-text">{{ t(footOfflineError) }}</p>
+        </section>
+
+        <!-- Foot offline: download in progress -->
+        <section class="drawer-section" v-if="footMode && footCacheMode === 'offline' && poiPrefetching">
+          <div class="section-label">{{ t('footOfflineDownload') }}</div>
+          <div class="mini-progress">
+            <div class="mini-progress__bar" :style="{ width: poiPrefetchProgress + '%' }"></div>
+          </div>
+          <p class="meta-text">
+            <template v-if="poiPrefetchCancelling">{{ t('footOfflineCancelling') }}</template>
+            <template v-else>
+              {{ t('footOfflineDownloading').replace('{n}', poiPrefetchTotal) }}
+              · {{ poiPrefetchProgress }}%
+            </template>
+          </p>
+          <button v-if="!poiPrefetchCancelling" class="btn btn--small" @click="cancelPOIPrefetch">{{ t('footOfflineCancelDownload') }}</button>
+        </section>
+
+      </div>
+    </Transition>
+
     <!-- ── DEMO UNLOCKED TOAST ───────────────────────────────────────── -->
     <Transition name="fade">
       <div v-if="showDemoUnlockedToast" class="demo-toast">{{ t('demoUnlockedMsg') }}</div>
@@ -743,8 +764,9 @@ const { locked: screenLocked, gesture: lockGesture, lock: lockScreen, unlock: un
 // ── Menu + Settings drawer ─────────────────────────────────────────────
 const menuOpen     = ref(false)
 const settingsOpen = ref(false)
+const tripOpen     = ref(false)
 const aboutOpen    = ref(false)
-const activeTab    = ref('trip')
+const activeTab    = ref('display')
 
 // ── Privacy notice ─────────────────────────────────────────────────────
 const privacyAccepted = ref(localStorage.getItem('privacy-accepted') === 'true')
@@ -988,7 +1010,7 @@ watch(prefetching, (active) => {
   if (active) {
     prefetchElapsed.value = 0
     prefetchTimer = setInterval(() => { prefetchElapsed.value++ }, 1000)
-    activeTab.value = 'trip'   // always show progress regardless of current tab
+    tripOpen.value = true   // always show progress
   } else {
     clearInterval(prefetchTimer)
     prefetchTimer = null
@@ -1728,7 +1750,6 @@ async function setFromMyLocation() {
 
 // ── Trip lifecycle ─────────────────────────────────────────────────────
 async function startTrip() {
-  activeTab.value = 'trip'
   await loadRoute(fromPlace.value, toPlace.value, 15000)
   if (routeLoaded.value) {
     const newId = crypto.randomUUID()
@@ -1741,7 +1762,7 @@ async function startTrip() {
     if (!demoEnabled.value && privacyAccepted.value) startGps()
     // Brief pause so the user sees the active-trip state before the panel closes
     await new Promise(r => setTimeout(r, 800))
-    settingsOpen.value = false
+    tripOpen.value = false
     persistSession()
   }
 }
@@ -1758,7 +1779,7 @@ async function startFootWalk() {
   }
   if (privacyAccepted.value) startGps()
   await new Promise(r => setTimeout(r, 400))
-  settingsOpen.value = false
+  tripOpen.value = false
 }
 
 function resetTrip() {
@@ -1814,7 +1835,7 @@ function createNewTrip() {
   avgSpeedMs.value        = null
   activeTripId.value = null
   localStorage.removeItem('motorhome-active-trip-id')
-  settingsOpen.value = true
+  tripOpen.value = true
 }
 
 async function switchToTrip(id) {
@@ -2508,6 +2529,31 @@ function sideArrow(s) {
 }
 .icon-pick-btn:hover { border-color: var(--accent); }
 .icon-pick-btn.active { border-color: var(--accent); background: var(--bg-panel); }
+
+/* ── Travel mode toggle ───────────────────────────────────────────── */
+.mode-toggle-row {
+  display: flex;
+  gap: 0.5rem;
+}
+.mode-btn {
+  flex: 1;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.4rem;
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+  text-align: center;
+}
+.mode-btn.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
 
 /* ── Settings tabs ────────────────────────────────────────────────── */
 .drawer-tabs {
