@@ -1444,7 +1444,7 @@ function announcePOI(poi) {
     }
   }
 
-  speak(text, lang.value)
+  speak(text, lang.value, { queue: true })
 }
 watch(townFontScale, async () => {
   await nextTick()

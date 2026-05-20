@@ -17,7 +17,8 @@ function _fireSpeechEndListeners() {
 
 let _activeUtt = null
 let _primed    = false
-let _pending   = null  // { text, lang }
+let _pending   = null  // { text, lang } — queued while not yet unlocked
+let _queued    = null  // { text, lang } — queued while speaking (queue mode)
 
 function _makeUtt(text, lang) {
   const utt  = new SpeechSynthesisUtterance(text)
@@ -31,9 +32,15 @@ function _makeUtt(text, lang) {
     isSpeaking.value = false
     console.log('[TTS] onend')
     _fireSpeechEndListeners()
+    if (_queued) {
+      const { text, lang } = _queued
+      _queued = null
+      _speakFromBackground(text, lang)
+    }
   }
   utt.onerror = (e) => {
     isSpeaking.value = false
+    _queued = null
     console.error('[TTS] onerror', e.error, e)
     window.speechSynthesis.cancel()  // reset engine state after any error
     _fireSpeechEndListeners()
@@ -94,13 +101,19 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
 }
 
 export function useTTS() {
-  function speak(text, lang = 'en') {
+  function speak(text, lang = 'en', { queue = false } = {}) {
     if (!ttsEnabled.value || !window.speechSynthesis) return
     if (!_primed) {
       console.log('[TTS] not yet unlocked — queuing (len=%d)', text.length)
       _pending = { text, lang }
       return
     }
+    if (queue && isSpeaking.value) {
+      console.log('[TTS] queued (len=%d)', text.length)
+      _queued = { text, lang }
+      return
+    }
+    _queued = null
     _speakFromBackground(text, lang)
   }
 
