@@ -787,8 +787,14 @@ const {
   loadDemoRoute, startDemo, pauseDemo, stopDemo
 } = useDemoMode()
 
-const mapFollowZoom = ref(localStorage.getItem('mapFollowZoom') || 'overview')
-watch(mapFollowZoom, v => localStorage.setItem('mapFollowZoom', v))
+const mapFollowZoom = ref(
+  localStorage.getItem((localStorage.getItem('foot-mode') === 'true' ? 'foot.' : 'car.') + 'mapFollowZoom')
+  ?? localStorage.getItem('mapFollowZoom')
+  ?? 'overview'
+)
+watch(mapFollowZoom, v => {
+  localStorage.setItem((localStorage.getItem('foot-mode') === 'true' ? 'foot.' : 'car.') + 'mapFollowZoom', v)
+})
 
 const demoUnlocked        = ref(localStorage.getItem('demoUnlocked') === 'true')
 const showDemoUnlockedToast = ref(false)
@@ -899,9 +905,21 @@ const {
 // ── Foot mode ──────────────────────────────────────────────────────────
 const footMode = ref(localStorage.getItem('foot-mode') === 'true')
 watch(footMode, (v) => {
+  // Save outgoing mode's per-mode settings before the key changes
+  const oldPrefix = v ? 'car.' : 'foot.'
+  localStorage.setItem(oldPrefix + 'mapFollowZoom', mapFollowZoom.value)
+  localStorage.setItem(oldPrefix + 'nearbyMinDuration', nearbyMinDuration.value)
+
   localStorage.setItem('foot-mode', String(v))
   clearAnnounced()
   resetPOIThrottle()
+
+  // Restore incoming mode's per-mode settings (bare key as first-use fallback)
+  const newPrefix = v ? 'foot.' : 'car.'
+  mapFollowZoom.value = localStorage.getItem(newPrefix + 'mapFollowZoom') ?? localStorage.getItem('mapFollowZoom') ?? 'overview'
+  const _restoredDuration = localStorage.getItem(newPrefix + 'nearbyMinDuration') ?? localStorage.getItem('nearbyMinDuration')
+  nearbyMinDuration.value = _validCityModes.has(_restoredDuration) ? _restoredDuration : 'auto'
+
   // Clamp map zoom to foot-mode range when entering foot mode
   if (v && !['13', '14', '15'].includes(String(mapFollowZoom.value))) {
     mapFollowZoom.value = '15'
@@ -1134,9 +1152,10 @@ watch(routeTimedOut, (v) => {
 
 const displayedNearest = ref(null)
 const _validCityModes = new Set(['immediate', 'auto'])
-const nearbyMinDuration = ref(_validCityModes.has(localStorage.getItem('nearbyMinDuration')) ? localStorage.getItem('nearbyMinDuration') : 'auto')
+const _nearbyStored = localStorage.getItem((footMode.value ? 'foot.' : 'car.') + 'nearbyMinDuration') ?? localStorage.getItem('nearbyMinDuration')
+const nearbyMinDuration = ref(_validCityModes.has(_nearbyStored) ? _nearbyStored : 'auto')
 watch(nearbyMinDuration, v => {
-  localStorage.setItem('nearbyMinDuration', v)
+  localStorage.setItem((footMode.value ? 'foot.' : 'car.') + 'nearbyMinDuration', v)
   tryUpdateDisplayedNearest()
 })
 

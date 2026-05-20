@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.20] — 2026-05-20
+
+### Changed
+- **Per-mode settings for map zoom and city timing** — `mapFollowZoom` and `nearbyMinDuration` are now saved and restored independently for car mode and foot mode. Switching modes no longer overwrites the other mode's preferences; each mode remembers its own zoom level and city display timing. Existing values are preserved as the initial default for both modes on first upgrade.
+
+---
+
 ## [1.5.19] — 2026-05-19
 
 ### Added
