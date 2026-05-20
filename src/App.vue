@@ -959,9 +959,15 @@ function selectWalkBearing(b) { demoWalkBearing.value = b }
 async function startFootDemoMode() {
   actualPath.value = []
   if (actualPolyline && map) { map.removeLayer(actualPolyline); actualPolyline = null }
+  if (demoTargetMarker && map) { map.removeLayer(demoTargetMarker); demoTargetMarker = null }
   clearAnnounced()
-  const ok = await loadFootDemoRoute(fromPlace.value, demoWalkBearing.value, demoWalkLength.value)
-  if (ok) {
+  const target = await loadFootDemoRoute(fromPlace.value, demoWalkBearing.value, demoWalkLength.value)
+  if (target) {
+    if (map && L) {
+      demoTargetMarker = L.marker([target.lat, target.lng], {
+        icon: L.divIcon({ className: '', html: '<div style="background:red;width:12px;height:12px;border-radius:50%;border:2px solid white"></div>', iconSize: [12, 12], iconAnchor: [6, 6] })
+      }).addTo(map).bindPopup(`Demo target (${demoWalkBearing.value}°)`).openPopup()
+    }
     resetPOIThrottle()
     if (map) {
       const zoom = ['13', '14', '15'].includes(String(mapFollowZoom.value))
@@ -978,6 +984,7 @@ function stopFootDemoMode() {
   stopDemo()
   actualPath.value = []
   if (actualPolyline && map) { map.removeLayer(actualPolyline); actualPolyline = null }
+  if (demoTargetMarker && map) { map.removeLayer(demoTargetMarker); demoTargetMarker = null }
   resetPOIThrottle()
 }
 
@@ -1527,6 +1534,7 @@ const footIcons = [
 let L = null, map = null
 let vehicleMarker = null, routePolyline = null, actualPolyline = null
 let startMarker = null, endMarker = null, poiMarker = null
+let demoTargetMarker = null
 let mapResizeObserver = null, asideResizeObserver = null
 const mapContainer = ref(null)
 

@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.5.24] — 2026-05-20
+
+### Fixed
+- **Foot demo now uses real pedestrian routing** — switched the OSRM endpoint from `router.project-osrm.org` (car-only) to `routing.openstreetmap.de/routed-foot`, which uses the walking profile. One-way street restrictions no longer force the route in the wrong direction (e.g. northbound when heading south). Added `routing.openstreetmap.de` to the Content Security Policy accordingly.
+- **Debug: target point shown on map** — a red marker is placed at the computed destination when starting a foot demo, making it easy to verify the bearing is correct independently of the OSRM path.
+
+---
+
 ## [1.5.23] — 2026-05-20
 
 ### Fixed

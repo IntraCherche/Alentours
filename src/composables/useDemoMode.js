@@ -21,17 +21,30 @@ export function useDemoMode() {
   let intervalId  = null
   let lastTick    = null
 
-  function loadFootDemoRoute(from, bearing, length) {
-    demoError.value = null
+  async function loadFootDemoRoute(from, bearing, length) {
+    demoLoading.value = true
+    demoError.value   = null
     routePoints = []
     totalLength = 0
     cursorDist  = 0
-    const to       = destinationPoint(from.lat, from.lng, bearing ?? demoWalkBearing.value, length ?? demoWalkLength.value)
-    const forward  = [[from.lat, from.lng], [to.lat, to.lng]]
-    const backward = [...forward].reverse()
-    routePoints = [...forward, ...backward.slice(1)]
-    totalLength = computeLength(routePoints)
-    return true
+    try {
+      const to  = destinationPoint(from.lat, from.lng, bearing ?? demoWalkBearing.value, length ?? demoWalkLength.value)
+      const url = `https://routing.openstreetmap.de/routed-foot/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=polyline6`
+      const res  = await fetch(url)
+      if (!res.ok) throw new Error(`OSRM ${res.status}`)
+      const data = await res.json()
+      if (!data.routes?.length) throw new Error('No route found')
+      const forward  = decodePolyline6(data.routes[0].geometry)
+      const backward = [...forward].reverse()
+      routePoints = [...forward, ...backward.slice(1)]
+      totalLength = computeLength(routePoints)
+      return to
+    } catch (err) {
+      demoError.value = err.message
+      return false
+    } finally {
+      demoLoading.value = false
+    }
   }
 
   async function loadDemoRoute(from, to) {
