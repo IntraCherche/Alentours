@@ -1342,8 +1342,21 @@ const asideScrollDur  = ref(20)
 
 const displayExtract = computed(() => displayedNearest.value?.wiki?.filteredExtract ?? null)
 
-// Foot mode: always show the nearest POI immediately (no min-duration lock)
-const displayedNearestPOI = computed(() => footMode.value ? (pois.value[0] ?? null) : null)
+// Foot mode: locked while TTS is speaking — switches only after speech ends.
+const displayedNearestPOI = ref(null)
+
+function tryUpdateDisplayedNearestPOI() {
+  const next = footMode.value ? (pois.value[0] ?? null) : null
+  if (next?.id === displayedNearestPOI.value?.id) return
+  if (!displayedNearestPOI.value || !isSpeaking.value) {
+    displayedNearestPOI.value = next
+    return
+  }
+  onSpeechEnd(() => tryUpdateDisplayedNearestPOI())
+}
+
+watch(() => pois.value[0], tryUpdateDisplayedNearestPOI)
+watch(footMode, tryUpdateDisplayedNearestPOI)
 
 function announceTown(town) {
   const dept       = town.wiki?.department
@@ -1444,7 +1457,7 @@ function announcePOI(poi) {
     }
   }
 
-  speak(text, lang.value, { queue: true })
+  speak(text, lang.value)
 }
 watch(townFontScale, async () => {
   await nextTick()
