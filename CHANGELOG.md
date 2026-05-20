@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.25] — 2026-05-20
+
+### Fixed
+- **Foot mode POI selection improved** — the SPARQL query now returns the correct landmark at Place du Capitole (Toulouse) and similar locations. Three issues were resolved: (1) `Q3284499` (capitole) was added to the POI type list — the Capitole de Toulouse has this specific Wikidata type rather than the generic town-hall type; (2) `Q1187811` (préfecture) was mistakenly added as a POI type and caused French prefectural cities to appear as landmarks — it is now correctly placed in the admin-entity exclusion list instead; (3) the admin-entity exclusion filter used `FILTER NOT EXISTS { VALUES … }` which is not supported by Blazegraph (Wikidata's SPARQL engine), causing all POIs to disappear — replaced with the reliable `OPTIONAL { VALUES … } FILTER(!BOUND(?adminType))` pattern.
+
+---
+
 ## [1.5.24] — 2026-05-20
 
 ### Fixed

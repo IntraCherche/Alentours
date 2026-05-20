@@ -38,6 +38,14 @@ const POI_TYPES = [
   'wd:Q82117',    // fortification
   'wd:Q39614',    // cemetery
   'wd:Q21027555', // cultural heritage site
+  'wd:Q848899',   // town hall (hôtel de ville / mairie)
+  'wd:Q3284499',  // capitole (FR specific: Capitole de Toulouse etc.)
+  'wd:Q24354',    // theatre building
+  'wd:Q153562',   // opera (institution/company type)
+  'wd:Q1060829',  // opera house (building)
+  'wd:Q271669',   // market hall / covered market
+  'wd:Q55488',    // railway station
+  'wd:Q4989906',  // fortified gate
 ].join(' ')
 
 const WIKI_IMG_HOSTS = ['upload.wikimedia.org', 'commons.wikimedia.org']
@@ -214,6 +222,14 @@ SELECT DISTINCT ?item ?itemLabel ?itemDescription ?coord ?image ?article WHERE {
   }
   ?item wdt:P31 ?type .
   VALUES ?type { ${POI_TYPES} }
+  OPTIONAL {
+    ?item wdt:P31 ?adminType .
+    VALUES ?adminType {
+      wd:Q515 wd:Q1549591 wd:Q5119 wd:Q532 wd:Q3957
+      wd:Q484170 wd:Q2616791 wd:Q36102 wd:Q208511 wd:Q1187811
+    }
+  }
+  FILTER(!BOUND(?adminType))
   OPTIONAL { ?item wdt:P18 ?image }
   OPTIONAL {
     ?article schema:about ?item ;
