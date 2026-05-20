@@ -373,18 +373,18 @@
           </section>
 
           <!-- Read description aloud (car mode only) -->
-          <section class="drawer-section" v-if="!footMode">
+          <section class="drawer-section" :class="{ 'tts-disabled': !ttsEnabled }" v-if="!footMode">
             <div class="section-label">{{ t('ttsReadDescription') }}</div>
-            <select class="text-input lang-select" v-model="ttsReadDescription">
+            <select class="text-input lang-select" v-model="ttsReadDescription" :disabled="!ttsEnabled">
               <option :value="false">{{ t('ttsOff') }}</option>
               <option :value="true">{{ t('ttsOn') }}</option>
             </select>
           </section>
 
           <!-- Description length (foot mode) -->
-          <section class="drawer-section">
+          <section class="drawer-section" :class="{ 'tts-disabled': !ttsEnabled }">
             <div class="section-label">{{ t('ttsFootVerbosity') }}</div>
-            <select class="text-input lang-select" v-model="ttsFootVerbosity">
+            <select class="text-input lang-select" v-model="ttsFootVerbosity" :disabled="!ttsEnabled">
               <option value="short">{{ t('ttsVerbosityShort') }}</option>
               <option value="normal">{{ t('ttsVerbosityNormal') }}</option>
               <option value="long">{{ t('ttsVerbosityLong') }}</option>
@@ -2348,6 +2348,7 @@ function sideArrow(s) {
   border-bottom: 1px solid var(--border);
 }
 .drawer-section:last-child { border-bottom: none; }
+.drawer-section.tts-disabled { opacity: 0.4; pointer-events: none; }
 .section-label {
   font-family: var(--font-display);
   font-size: 0.65rem;
