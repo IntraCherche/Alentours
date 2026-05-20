@@ -418,7 +418,7 @@
               </div>
             </div>
           </section>
-          <section class="drawer-section" v-if="demoUnlocked && !footMode">
+          <section class="drawer-section" v-if="demoUnlocked">
             <div class="section-label">{{ t('demoSection') }}</div>
             <label class="toggle-label">
               <input type="checkbox" v-model="demoEnabled" />
@@ -465,7 +465,7 @@
         </section>
 
         <!-- Trip setup -->
-        <section class="drawer-section" v-if="!routeLoaded">
+        <section class="drawer-section" v-if="(footMode && demoEnabled) ? demoState === 'idle' : !routeLoaded">
           <div class="section-label">{{ footMode ? t('footStartLabel') : t('planTrip') }}</div>
 
           <div v-if="!footMode" class="input-group">
@@ -514,9 +514,54 @@
             <p v-if="routeError" class="error-text">{{ routeError }}</p>
           </template>
 
-          <button v-if="footMode" class="btn btn--primary" @click="startFootWalk">
+          <!-- Foot mode: normal walk -->
+          <button v-if="footMode && !demoEnabled" class="btn btn--primary" @click="startFootWalk">
             {{ t('startWalk') }}
           </button>
+
+          <!-- Foot mode: demo config (shown only when demo is idle) -->
+          <template v-if="footMode && demoEnabled">
+            <div class="section-label">{{ t('demoFootStartLocation') }}</div>
+            <div class="input-group">
+              <div class="autocomplete">
+                <input class="text-input" v-model="fromQuery" :placeholder="t('fromPlaceholder')"
+                  @input="onFromInput" @keydown.enter="selectFirstFrom"
+                  @focus="onFromFocus" @blur="onFromBlur" />
+                <ul v-if="fromSuggestions.length" class="suggestions">
+                  <li v-for="s in fromSuggestions" :key="s.lat + s.lng" class="suggestion" @click="selectFrom(s)">
+                    <span v-if="s.recent" class="suggestion-recent-icon">↩</span>{{ s.name }}
+                  </li>
+                </ul>
+              </div>
+              <span v-if="fromPlace" class="resolved">✓ {{ fromPlace.name }}</span>
+            </div>
+
+            <div class="demo-speed-row">
+              <span class="demo-speed-label">{{ t('demoSpeedLabel') }}</span>
+              <span class="demo-speed-val">{{ demoSpeed }} km/h</span>
+            </div>
+            <input type="range" class="demo-range" v-model.number="demoSpeed" min="3" max="30" step="1" />
+
+            <div class="demo-speed-row">
+              <span class="demo-speed-label">{{ t('demoWalkLength') }}</span>
+              <span class="demo-speed-val">{{ demoWalkLength >= 1000 ? (demoWalkLength / 1000).toFixed(1) + ' km' : demoWalkLength + ' m' }}</span>
+            </div>
+            <input type="range" class="demo-range" v-model.number="demoWalkLength" min="200" max="5000" step="100" />
+
+            <div class="section-label">{{ t('demoWalkDirection') }}</div>
+            <div class="compass-rose">
+              <template v-for="dir in compassDirections" :key="dir.bearing">
+                <button v-if="dir.key" class="compass-btn" :class="{ active: demoWalkBearing === dir.bearing }"
+                  @click="demoWalkBearing = dir.bearing">{{ dir.key }}</button>
+                <span v-else class="compass-center"></span>
+              </template>
+            </div>
+
+            <button class="btn btn--primary" :disabled="demoLoading || !fromPlace" @click="startFootDemoMode">
+              {{ demoLoading ? t('demoLoadingRoute') : t('demoStart') }}
+            </button>
+            <p v-if="demoError" class="error-text">{{ demoError }}</p>
+          </template>
         </section>
 
         <!-- Pre-fetching towns -->
@@ -590,6 +635,31 @@
             <template v-else-if="demoState === 'finished'">
               <button class="btn btn--primary" @click="startDemo">{{ t('demoReplay') }}</button>
               <button class="btn" @click="stopDemoMode">{{ t('demoStop') }}</button>
+            </template>
+          </div>
+          <p v-if="demoError" class="error-text">{{ demoError }}</p>
+        </section>
+
+        <!-- Foot demo active controls (visible when foot demo is running/paused/finished) -->
+        <section class="drawer-section" v-if="footMode && demoEnabled && demoState !== 'idle'">
+          <div class="section-label">{{ t('demoSection') }}</div>
+          <div class="demo-speed-row">
+            <span class="demo-speed-label">{{ t('demoSpeedLabel') }}</span>
+            <span class="demo-speed-val">{{ demoSpeed }} km/h</span>
+          </div>
+          <input type="range" class="demo-range" v-model.number="demoSpeed" min="3" max="30" step="1" />
+          <div class="demo-controls">
+            <template v-if="demoState === 'running'">
+              <button class="btn" @click="pauseDemo">{{ t('demoPause') }}</button>
+              <button class="btn" @click="stopFootDemoMode">{{ t('demoStop') }}</button>
+            </template>
+            <template v-else-if="demoState === 'paused'">
+              <button class="btn btn--primary" @click="startDemo">{{ t('demoResume') }}</button>
+              <button class="btn" @click="stopFootDemoMode">{{ t('demoStop') }}</button>
+            </template>
+            <template v-else-if="demoState === 'finished'">
+              <button class="btn btn--primary" @click="startDemo">{{ t('demoReplay') }}</button>
+              <button class="btn" @click="stopFootDemoMode">{{ t('demoStop') }}</button>
             </template>
           </div>
           <p v-if="demoError" class="error-text">{{ demoError }}</p>
@@ -783,8 +853,9 @@ const { position, error: geoError, watching, start: startGps, stop: stopGps } = 
 
 // ── Demo mode ───────────────────────────────────────────────────────────
 const {
-  demoEnabled, demoSpeed, demoState, demoPosition, demoError, demoLoading,
-  loadDemoRoute, startDemo, pauseDemo, stopDemo
+  demoEnabled, demoSpeed, demoWalkLength, demoWalkBearing,
+  demoState, demoPosition, demoError, demoLoading,
+  loadDemoRoute, loadFootDemoRoute, startDemo, pauseDemo, stopDemo
 } = useDemoMode()
 
 const mapFollowZoom = ref(
@@ -861,6 +932,37 @@ function stopDemoMode() {
   } else {
     fitBoundsToRoute()
   }
+}
+
+const compassDirections = [
+  { key: 'NW', bearing: 315 }, { key: 'N', bearing: 0   }, { key: 'NE', bearing: 45  },
+  { key: 'W',  bearing: 270 }, { key: '',  bearing: -1  }, { key: 'E',  bearing: 90  },
+  { key: 'SW', bearing: 225 }, { key: 'S', bearing: 180 }, { key: 'SE', bearing: 135 },
+]
+
+async function startFootDemoMode() {
+  actualPath.value = []
+  if (actualPolyline && map) { map.removeLayer(actualPolyline); actualPolyline = null }
+  clearAnnounced()
+  const ok = await loadFootDemoRoute(fromPlace.value)
+  if (ok) {
+    resetPOIThrottle()
+    if (map) {
+      const zoom = ['13', '14', '15'].includes(String(mapFollowZoom.value))
+        ? parseInt(mapFollowZoom.value)
+        : 15
+      map.setView([fromPlace.value.lat, fromPlace.value.lng], zoom, { animate: true })
+    }
+    startDemo()
+  }
+  tripOpen.value = false
+}
+
+function stopFootDemoMode() {
+  stopDemo()
+  actualPath.value = []
+  if (actualPolyline && map) { map.removeLayer(actualPolyline); actualPolyline = null }
+  resetPOIThrottle()
 }
 
 // ── iOS auto-lock hint ─────────────────────────────────────────────────
@@ -1796,7 +1898,7 @@ async function startFootWalk() {
       : 15
     map.setView([fromPlace.value.lat, fromPlace.value.lng], zoom, { animate: true })
   }
-  if (privacyAccepted.value) startGps()
+  if (!demoEnabled.value && privacyAccepted.value) startGps()
   await new Promise(r => setTimeout(r, 400))
   tripOpen.value = false
 }
@@ -2772,6 +2874,28 @@ function sideArrow(s) {
   cursor: pointer;
 }
 .demo-controls { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.compass-rose {
+  display: grid;
+  grid-template-columns: repeat(3, 2.2rem);
+  gap: 0.25rem;
+  margin: 0.4rem 0 0.6rem;
+}
+.compass-btn {
+  height: 2.2rem;
+  border: 1px solid var(--border);
+  border-radius: 0.35rem;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.compass-btn.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.compass-center { display: block; }
 .toggle-label {
   display: flex;
   align-items: center;

@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.5.21] — 2026-05-20
+
+### Added
+- **Demo mode for sightseeing (foot) mode** — the demo unlock and toggle now appear in both car and foot modes. In foot mode, enabling demo reveals a configuration form in the Trip panel: a start-location picker, a speed slider (3–30 km/h), a walk-length slider (200 m – 5 km), and a 3×3 compass rose to pick the walking direction. Tapping Start fetches a real OSRM pedestrian route toward the chosen bearing, then walks it back in reverse — triggering landmark discovery along the way exactly as real GPS would. Pause, resume, replay and stop controls appear while the demo is running. All parameters (length, bearing) are persisted across sessions.
+- **Offline download radius label clarified** — the setting now reads "Offline download radius — sightseeing (km)" to make clear it only applies to foot/sightseeing mode.
+
+---
+
 ## [1.5.20] — 2026-05-20
 
 ### Changed

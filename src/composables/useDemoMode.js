@@ -1,21 +1,51 @@
 import { ref, watch, onUnmounted } from 'vue'
 
 export function useDemoMode() {
-  const demoEnabled  = ref(localStorage.getItem('demoEnabled') === 'true')
-  const demoSpeed    = ref(parseInt(localStorage.getItem('demoSpeed') || '200', 10))  // km/h
+  const demoEnabled      = ref(localStorage.getItem('demoEnabled') === 'true')
+  const demoSpeed        = ref(parseInt(localStorage.getItem('demoSpeed')        || '200', 10))  // km/h
+  const demoWalkLength   = ref(parseInt(localStorage.getItem('demoWalkLength')   || '800', 10))  // metres
+  const demoWalkBearing  = ref(parseInt(localStorage.getItem('demoWalkBearing')  || '0',   10))  // degrees
   const demoState    = ref('idle')   // 'idle' | 'running' | 'paused'
   const demoPosition = ref(null)
   const demoError    = ref(null)
   const demoLoading  = ref(false)
 
-  watch(demoEnabled, v => localStorage.setItem('demoEnabled', String(v)))
-  watch(demoSpeed,   v => localStorage.setItem('demoSpeed',   String(v)))
+  watch(demoEnabled,     v => localStorage.setItem('demoEnabled',     String(v)))
+  watch(demoSpeed,       v => localStorage.setItem('demoSpeed',       String(v)))
+  watch(demoWalkLength,  v => localStorage.setItem('demoWalkLength',  String(v)))
+  watch(demoWalkBearing, v => localStorage.setItem('demoWalkBearing', String(v)))
 
   let routePoints = []   // [[lat, lng], …] decoded from OSRM polyline6
   let totalLength = 0    // metres
   let cursorDist  = 0    // metres along route
   let intervalId  = null
   let lastTick    = null
+
+  async function loadFootDemoRoute(from) {
+    demoLoading.value = true
+    demoError.value   = null
+    routePoints = []
+    totalLength = 0
+    cursorDist  = 0
+    try {
+      const to = destinationPoint(from.lat, from.lng, demoWalkBearing.value, demoWalkLength.value)
+      const url = `https://router.project-osrm.org/route/v1/foot/${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=polyline6`
+      const res  = await fetch(url)
+      if (!res.ok) throw new Error(`OSRM ${res.status}`)
+      const data = await res.json()
+      if (!data.routes?.length) throw new Error('No route found')
+      const forward  = decodePolyline6(data.routes[0].geometry)
+      const backward = [...forward].reverse()
+      routePoints = [...forward, ...backward.slice(1)]  // go there, come back
+      totalLength = computeLength(routePoints)
+      return true
+    } catch (err) {
+      demoError.value = err.message
+      return false
+    } finally {
+      demoLoading.value = false
+    }
+  }
 
   async function loadDemoRoute(from, to) {
     demoLoading.value = true
@@ -105,8 +135,9 @@ export function useDemoMode() {
   onUnmounted(() => { if (intervalId) clearInterval(intervalId) })
 
   return {
-    demoEnabled, demoSpeed, demoState, demoPosition, demoError, demoLoading,
-    loadDemoRoute, startDemo, pauseDemo, stopDemo
+    demoEnabled, demoSpeed, demoWalkLength, demoWalkBearing,
+    demoState, demoPosition, demoError, demoLoading,
+    loadDemoRoute, loadFootDemoRoute, startDemo, pauseDemo, stopDemo
   }
 }
 
@@ -139,6 +170,17 @@ function computeLength(pts) {
   let total = 0
   for (let i = 1; i < pts.length; i++) total += haversine(pts[i - 1], pts[i])
   return total
+}
+
+function destinationPoint(lat, lng, bearingDeg, distMeters) {
+  const R  = 6371000
+  const δ  = distMeters / R
+  const θ  = bearingDeg * Math.PI / 180
+  const φ1 = lat * Math.PI / 180
+  const λ1 = lng * Math.PI / 180
+  const φ2 = Math.asin(Math.sin(φ1) * Math.cos(δ) + Math.cos(φ1) * Math.sin(δ) * Math.cos(θ))
+  const λ2 = λ1 + Math.atan2(Math.sin(θ) * Math.sin(δ) * Math.cos(φ1), Math.cos(δ) - Math.sin(φ1) * Math.sin(φ2))
+  return { lat: φ2 * 180 / Math.PI, lng: ((λ2 * 180 / Math.PI) + 540) % 360 - 180 }
 }
 
 function bearing([lat1, lng1], [lat2, lng2]) {
