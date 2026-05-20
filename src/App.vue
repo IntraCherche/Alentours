@@ -313,6 +313,20 @@
             </div>
           </section>
 
+          <!-- POI announcement radius (foot mode only) -->
+          <section class="drawer-section" v-if="footMode">
+            <div class="section-label">{{ t('footAnnouncementRadius') }}</div>
+            <div class="icon-picker">
+              <button
+                v-for="r in FOOT_ANNOUNCEMENT_RADIUS_PRESETS"
+                :key="r"
+                class="icon-pick-btn"
+                :class="{ active: footAnnouncementRadiusM === r }"
+                @click="footAnnouncementRadiusM = r"
+              >{{ r }} m</button>
+            </div>
+          </section>
+
           <!-- Map follow zoom — car mode: all options -->
           <section class="drawer-section" v-if="!footMode">
             <div class="section-label">{{ t('mapFollowZoom') }}</div>
@@ -1001,7 +1015,7 @@ const {
   prefetchTotal: poiPrefetchTotal, prefetchDone: poiPrefetchDone,
   prefetchCancelling: poiPrefetchCancelling,
   fetchNearbyPOIs, resetThrottle: resetPOIThrottle,
-  prefetchPOIs, cancelPrefetch: cancelPOIPrefetch, setCacheModeGetter,
+  prefetchPOIs, cancelPrefetch: cancelPOIPrefetch, setCacheModeGetter, setAnnouncementRadiusGetter,
 } = useNearbyPOIs()
 
 // ── Foot mode ──────────────────────────────────────────────────────────
@@ -1055,6 +1069,11 @@ setCacheModeGetter(() => footCacheMode.value)
 
 const footOfflineRadiusKm  = ref(parseInt(localStorage.getItem('footOfflineRadius') || '5', 10))
 watch(footOfflineRadiusKm, v => localStorage.setItem('footOfflineRadius', String(v)))
+
+const FOOT_ANNOUNCEMENT_RADIUS_PRESETS = [50, 100, 200, 500]
+const footAnnouncementRadiusM = ref(parseInt(localStorage.getItem('footAnnouncementRadius') || '500', 10))
+watch(footAnnouncementRadiusM, v => { localStorage.setItem('footAnnouncementRadius', String(v)); resetPOIThrottle() })
+setAnnouncementRadiusGetter(() => footAnnouncementRadiusM.value / 1000)
 
 const footOfflineQuery       = ref('')
 const footOfflineSuggestions = ref([])

@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.22] — 2026-05-20
+
+### Added
+- **Configurable POI announcement radius in foot mode** — a new preset picker in the Display settings (50 m / 100 m / 200 m / 500 m) controls how far ahead a landmark must be to trigger an announcement. Defaults to 500 m (previous behaviour). Changing the radius immediately re-queries POIs. Setting persists across sessions.
+
+---
+
 ## [1.5.21] — 2026-05-20
 
 ### Added

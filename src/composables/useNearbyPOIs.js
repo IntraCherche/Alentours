@@ -2,7 +2,7 @@
  * useNearbyPOIs
  *
  * Foot-mode sightseeing: queries Wikidata via the wikibase:around geographic
- * service for cultural POIs within 500 m of the current position, then
+ * service for cultural POIs within a configurable radius of the current position, then
  * enriches results that have a Wikipedia sitelink with their full extract.
  *
  * Throttled to 1 call per 100 m moved OR 60 s elapsed.
@@ -17,7 +17,6 @@ import { poiCachePutMany, poiCacheGetAll, poiCacheCount } from './usePOICache.js
 const { lang } = useLocale()
 
 const SPARQL_URL  = 'https://query.wikidata.org/sparql'
-const RADIUS_KM   = 0.5
 const MIN_MOVE_M  = 100
 const MIN_TIME_MS = 60_000
 
@@ -60,6 +59,10 @@ export function useNearbyPOIs() {
   let getCacheMode = () => 'none'
   function setCacheModeGetter(fn) { getCacheMode = fn }
 
+  // Announcement radius in km (passed in from App.vue as a plain getter)
+  let getAnnouncementRadiusKm = () => 0.5
+  function setAnnouncementRadiusGetter(fn) { getAnnouncementRadiusKm = fn }
+
   async function fetchNearbyPOIs(lat, lng, heading) {
     const now = Date.now()
     if (lastQueryLat !== null) {
@@ -85,7 +88,7 @@ export function useNearbyPOIs() {
   async function fetchLive(lat, lng, heading) {
     try {
       const langCode = lang.value === 'fr' ? 'fr' : 'en'
-      const sparql   = buildSparql(lng, lat, langCode, RADIUS_KM, 20)
+      const sparql   = buildSparql(lng, lat, langCode, getAnnouncementRadiusKm(), 20)
       const url      = `${SPARQL_URL}?query=${encodeURIComponent(sparql)}&format=json`
       const res      = await fetch(url, { headers: { Accept: 'application/sparql-results+json' } })
       if (!res.ok) throw new Error(`SPARQL ${res.status}`)
@@ -109,7 +112,7 @@ export function useNearbyPOIs() {
       }
       const nearby = all
         .map(p => ({ ...p, distance: haversine(lat, lng, p.lat, p.lng), side: computeSide(lat, lng, heading, p.lat, p.lng) }))
-        .filter(p => p.distance <= RADIUS_KM * 1000)
+        .filter(p => p.distance <= getAnnouncementRadiusKm() * 1000)
         .sort((a, b) => a.distance - b.distance)
       pois.value = nearby
     } catch {
@@ -195,7 +198,7 @@ export function useNearbyPOIs() {
     prefetching, prefetchProgress, prefetchTotal, prefetchDone,
     prefetchCancelling,
     fetchNearbyPOIs, resetThrottle, prefetchPOIs, cancelPrefetch, getCachedCount,
-    setCacheModeGetter,
+    setCacheModeGetter, setAnnouncementRadiusGetter,
   }
 }
 
