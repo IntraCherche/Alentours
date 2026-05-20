@@ -6,6 +6,15 @@ watch(ttsEnabled, (v) => localStorage.setItem('tts-enabled', String(v)))
 const announcedAt = new Map()
 const COOLDOWN_MS = 2 * 60 * 60 * 1000
 
+const isSpeaking = ref(false)
+const _speechEndListeners = new Set()
+
+function _fireSpeechEndListeners() {
+  const fns = [..._speechEndListeners]
+  _speechEndListeners.clear()
+  fns.forEach(fn => fn())
+}
+
 let _activeUtt = null
 let _primed    = false
 let _pending   = null  // { text, lang }
@@ -14,11 +23,20 @@ function _makeUtt(text, lang) {
   const utt  = new SpeechSynthesisUtterance(text)
   _activeUtt = utt
   utt.lang   = lang === 'fr' ? 'fr-FR' : 'en-US'
-  utt.onstart = () => console.log('[TTS] onstart')
-  utt.onend   = () => console.log('[TTS] onend')
+  utt.onstart = () => {
+    isSpeaking.value = true
+    console.log('[TTS] onstart')
+  }
+  utt.onend = () => {
+    isSpeaking.value = false
+    console.log('[TTS] onend')
+    _fireSpeechEndListeners()
+  }
   utt.onerror = (e) => {
+    isSpeaking.value = false
     console.error('[TTS] onerror', e.error, e)
     window.speechSynthesis.cancel()  // reset engine state after any error
+    _fireSpeechEndListeners()
     if (e.error === 'not-allowed') {
       // Sticky activation was lost — wait for next gesture.
       _primed = false
@@ -99,5 +117,9 @@ export function useTTS() {
     announcedAt.clear()
   }
 
-  return { ttsEnabled, speak, shouldAnnounce, markAnnounced, clearAnnounced }
+  function onSpeechEnd(fn) {
+    _speechEndListeners.add(fn)
+  }
+
+  return { ttsEnabled, isSpeaking, speak, onSpeechEnd, shouldAnnounce, markAnnounced, clearAnnounced }
 }

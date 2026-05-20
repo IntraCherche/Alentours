@@ -557,12 +557,9 @@
           <!-- Min. display time — label adapts between car and foot mode -->
           <section class="drawer-section">
             <div class="section-label">{{ footMode ? t('nearbyMinTimePOI') : t('nearbyMinTime') }}</div>
-            <select class="text-input lang-select" v-model.number="nearbyMinDuration">
-              <option :value="0">{{ t('displayRefreshOff') }}</option>
-              <option :value="30">{{ t('displayRefreshQuick') }}</option>
-              <option :value="60">{{ t('displayRefreshNormal') }}</option>
-              <option :value="120">{{ t('displayRefreshRelaxed') }}</option>
-              <option :value="300">{{ t('displayRefreshSlow') }}</option>
+            <select class="text-input lang-select" v-model="nearbyMinDuration">
+              <option value="immediate">{{ t('displayRefreshImmediate') }}</option>
+              <option value="auto">{{ t('displayRefreshAuto') }}</option>
             </select>
           </section>
 
@@ -999,7 +996,7 @@ watch(prefetching, (active) => {
 })
 
 // ── TTS ────────────────────────────────────────────────────────────────
-const { ttsEnabled, speak, shouldAnnounce, markAnnounced, clearAnnounced } = useTTS()
+const { ttsEnabled, isSpeaking, speak, onSpeechEnd, shouldAnnounce, markAnnounced, clearAnnounced } = useTTS()
 const ttsReadDescription = ref(localStorage.getItem('tts-read-description') === 'true')
 watch(ttsReadDescription, (v) => localStorage.setItem('tts-read-description', String(v)))
 
@@ -1114,14 +1111,25 @@ watch(routeTimedOut, (v) => {
 })
 
 const displayedNearest = ref(null)
-const nearbyMinDuration = ref(parseInt(localStorage.getItem('nearbyMinDuration') || '120', 10))
+const _validCityModes = new Set(['immediate', 'auto'])
+const nearbyMinDuration = ref(_validCityModes.has(localStorage.getItem('nearbyMinDuration')) ? localStorage.getItem('nearbyMinDuration') : 'auto')
 watch(nearbyMinDuration, v => {
-  localStorage.setItem('nearbyMinDuration', String(v))
+  localStorage.setItem('nearbyMinDuration', v)
   tryUpdateDisplayedNearest()
 })
 
 let lastDisplayChange = 0
 let pendingDisplayTimer = null
+
+const AUTO_GAP_MS      = 1500   // pause after TTS ends before switching city
+const AUTO_FALLBACK_MS = 60_000 // gap when TTS is disabled in auto mode
+
+function _switchToNearest() {
+  clearTimeout(pendingDisplayTimer)
+  pendingDisplayTimer = null
+  displayedNearest.value = nearest.value
+  lastDisplayChange = Date.now()
+}
 
 function tryUpdateDisplayedNearest() {
   // GPS fetches replace towns array on every fix, producing new object references for the same
@@ -1140,20 +1148,46 @@ function tryUpdateDisplayedNearest() {
     return
   }
 
-  const minMs = nearbyMinDuration.value * 1000
+  // First city ever: always switch immediately regardless of mode.
+  if (!displayedNearest.value || nearbyMinDuration.value === 'immediate') {
+    _switchToNearest()
+    return
+  }
+
+  // 'auto' mode: wait for TTS to finish (+ gap), or 60 s fallback if voice is off.
   const elapsed = Date.now() - lastDisplayChange
 
-  if (minMs === 0 || elapsed >= minMs || !displayedNearest.value) {
-    clearTimeout(pendingDisplayTimer)
-    pendingDisplayTimer = null
-    displayedNearest.value = nearest.value
-    lastDisplayChange = Date.now()
-  } else if (!pendingDisplayTimer) {
-    // Timer reads nearest.value at fire time — shows whoever is actually nearest then.
-    pendingDisplayTimer = setTimeout(() => {
-      pendingDisplayTimer = null
-      tryUpdateDisplayedNearest()
-    }, minMs - elapsed)
+  if (ttsEnabled.value) {
+    if (isSpeaking.value) {
+      // Register a one-shot callback; switch after the gap once speech ends.
+      onSpeechEnd(() => {
+        if (pendingDisplayTimer) return
+        pendingDisplayTimer = setTimeout(() => {
+          pendingDisplayTimer = null
+          tryUpdateDisplayedNearest()
+        }, AUTO_GAP_MS)
+      })
+      return
+    }
+    // Speech already done — honour the short gap from last change.
+    if (elapsed >= AUTO_GAP_MS) {
+      _switchToNearest()
+    } else if (!pendingDisplayTimer) {
+      pendingDisplayTimer = setTimeout(() => {
+        pendingDisplayTimer = null
+        tryUpdateDisplayedNearest()
+      }, AUTO_GAP_MS - elapsed)
+    }
+  } else {
+    // TTS off: 60 s fallback.
+    if (elapsed >= AUTO_FALLBACK_MS) {
+      _switchToNearest()
+    } else if (!pendingDisplayTimer) {
+      pendingDisplayTimer = setTimeout(() => {
+        pendingDisplayTimer = null
+        tryUpdateDisplayedNearest()
+      }, AUTO_FALLBACK_MS - elapsed)
+    }
   }
 }
 
