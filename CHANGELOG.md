@@ -5,6 +5,9 @@
 ### Added
 - **Configurable POI announcement radius in foot mode** — a new preset picker in the Display settings (50 m / 100 m / 200 m / 500 m) controls how far ahead a landmark must be to trigger an announcement. Defaults to 500 m (previous behaviour). Changing the radius immediately re-queries POIs. Setting persists across sessions.
 
+### Fixed
+- **POI display locked while TTS is speaking in foot mode** — the displayed landmark no longer advances mid-sentence. The next POI is only shown and announced after the current speech ends; landmarks passed during a long announcement are skipped in favour of the nearest one at speech-end.
+
 ---
 
 ## [1.5.21] — 2026-05-20
