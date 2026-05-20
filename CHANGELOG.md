@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.23] — 2026-05-20
+
+### Fixed
+- **Foot demo direction now respected** — the compass rose bearing is applied via a straight-line path instead of OSRM pedestrian routing. OSRM was snapping all starting points to the nearest road (e.g. Rue des Lois from Place du Capitole), making every direction share the same initial segment. The demo now walks a straight line to the computed destination and returns, so N/S/E/W/diagonals all produce visually distinct routes immediately from the start.
+
+---
+
 ## [1.5.22] — 2026-05-20
 
 ### Added

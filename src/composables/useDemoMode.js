@@ -21,30 +21,17 @@ export function useDemoMode() {
   let intervalId  = null
   let lastTick    = null
 
-  async function loadFootDemoRoute(from) {
-    demoLoading.value = true
-    demoError.value   = null
+  function loadFootDemoRoute(from, bearing, length) {
+    demoError.value = null
     routePoints = []
     totalLength = 0
     cursorDist  = 0
-    try {
-      const to = destinationPoint(from.lat, from.lng, demoWalkBearing.value, demoWalkLength.value)
-      const url = `https://router.project-osrm.org/route/v1/foot/${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=polyline6`
-      const res  = await fetch(url)
-      if (!res.ok) throw new Error(`OSRM ${res.status}`)
-      const data = await res.json()
-      if (!data.routes?.length) throw new Error('No route found')
-      const forward  = decodePolyline6(data.routes[0].geometry)
-      const backward = [...forward].reverse()
-      routePoints = [...forward, ...backward.slice(1)]  // go there, come back
-      totalLength = computeLength(routePoints)
-      return true
-    } catch (err) {
-      demoError.value = err.message
-      return false
-    } finally {
-      demoLoading.value = false
-    }
+    const to       = destinationPoint(from.lat, from.lng, bearing ?? demoWalkBearing.value, length ?? demoWalkLength.value)
+    const forward  = [[from.lat, from.lng], [to.lat, to.lng]]
+    const backward = [...forward].reverse()
+    routePoints = [...forward, ...backward.slice(1)]
+    totalLength = computeLength(routePoints)
+    return true
   }
 
   async function loadDemoRoute(from, to) {

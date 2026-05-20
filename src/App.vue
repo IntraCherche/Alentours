@@ -566,7 +566,7 @@
             <div class="compass-rose">
               <template v-for="dir in compassDirections" :key="dir.bearing">
                 <button v-if="dir.key" class="compass-btn" :class="{ active: demoWalkBearing === dir.bearing }"
-                  @click="demoWalkBearing = dir.bearing">{{ dir.key }}</button>
+                  @click="selectWalkBearing(dir.bearing)">{{ dir.key }}</button>
                 <span v-else class="compass-center"></span>
               </template>
             </div>
@@ -954,11 +954,13 @@ const compassDirections = [
   { key: 'SW', bearing: 225 }, { key: 'S', bearing: 180 }, { key: 'SE', bearing: 135 },
 ]
 
+function selectWalkBearing(b) { demoWalkBearing.value = b }
+
 async function startFootDemoMode() {
   actualPath.value = []
   if (actualPolyline && map) { map.removeLayer(actualPolyline); actualPolyline = null }
   clearAnnounced()
-  const ok = await loadFootDemoRoute(fromPlace.value)
+  const ok = await loadFootDemoRoute(fromPlace.value, demoWalkBearing.value, demoWalkLength.value)
   if (ok) {
     resetPOIThrottle()
     if (map) {
