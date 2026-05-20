@@ -3,6 +3,9 @@
 ## [1.5.20] — 2026-05-20
 
 ### Changed
+- **Trip panel promoted to top-level menu entry** — Trip planning and GPS controls are now a direct "🗺 Trip" entry in the hamburger menu instead of a tab inside the settings drawer. The travel-mode toggle (Car / Sightseeing) sits at the top of that panel, replacing the old separate foot-mode menu item. The settings drawer now contains only Display, Audio, and Advanced tabs.
+- **City display timing simplified to Immediate / Automatic** — The old numeric min-time options are replaced by two modes: Immediate (switch instantly) and Automatic (wait for TTS to finish, then apply a 1.5 s gap; falls back to 60 s when voice is off). Old numeric localStorage values are migrated to Automatic.
+- **TTS sub-settings greyed out when voice is disabled** — Description reading and verbosity controls are now visually disabled when TTS is off, making it clear they have no effect.
 - **Per-mode settings for map zoom and city timing** — `mapFollowZoom` and `nearbyMinDuration` are now saved and restored independently for car mode and foot mode. Switching modes no longer overwrites the other mode's preferences; each mode remembers its own zoom level and city display timing. Existing values are preserved as the initial default for both modes on first upgrade.
 
 ---
