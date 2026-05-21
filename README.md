@@ -10,35 +10,11 @@ Designed to be glanced at from the passenger seat or mounted on a motorhome scre
 
 ## What it does
 
-- **Directional awareness** — large arrows (⬅ ➡ ⬆ ⬇) flank the town name and show at a glance where the town sits relative to your heading; color-coded by direction
-- **Multi-leg trips** — plan several legs of a journey and switch between them with a tab bar; each leg saves its own GPS path, progress, and towns cache; only one leg is active at a time
-- **Route planning** — type an origin and destination (city names or full street addresses); the actual driving route is fetched via OSRM (with straight-line fallback if unavailable), drawn on the map as a road-following polyline, and used for accurate distance done/left, ETA, and town corridor pre-fetching; a ⊕ button fills the origin field from the device's current location
-- **GPS tracking** — follows your position in real time, draws your actual path over the planned route, shows current and average speed
-- **Route progress** — progress bar with distance done, distance left, ETA and percentage
-- **Nearest town panel** — as you drive, shows the closest town with:
-  - Coat of arms (blason) fetched from Wikidata, shown next to the town name
-  - Wikipedia landmark thumbnail
-  - Nickname (e.g. "La Ville Rose"), population, altitude, inhabitant names, rivers, department (+ INSEE code) and region
-  - Current mayor with gender indicator (♂ / ♀)
-  - Auto-scrolling Wikipedia fun-fact: the last interesting paragraph of the intro, with administrative boilerplate and award/ranking copy filtered out
-- **Sightseeing / foot mode** (🚶 in the top-bar menu) — switches from road-trip tracking to pedestrian exploration:
-  - Queries Wikidata for cultural POIs within 500 m (monuments, museums, churches, castles, archaeological sites, bridges, and more)
-  - Enriches results with Wikipedia extracts and thumbnails
-  - Announces each new POI via TTS; verbosity is configurable (name only / one sentence / full extract)
-  - Pins the announced POI on the map with a labeled marker so you can see exactly where to look
-  - Throttled to one query per 100 m moved or 60 s to avoid hammering the Wikidata endpoint
-- **Place-type filter** — three modes: *All* (village, town, city), *Town & city* (hides hamlets), or *City only* (searches up to 80 km so a city skyline on the horizon is always identified; shows "No city in sight" when none is within range)
-- **Offline-first pre-fetch** — at trip start, all towns along the route are fetched from Overpass, Wikipedia, and Wikidata and cached locally; no further network calls are needed while driving; enrichment data is stored permanently in IndexedDB so revisited towns are instant
-- **Scalable UI** — font-size slider (×0.8 → ×2.0) in settings for easy reading at distance; progress and town panels scale together
-- **Voice announcements (TTS)** — when a new town is detected, a natural-language sentence is spoken: town name, department, region, direction, nickname, approximate altitude and population (e.g. "Ce village est situé à 320 m d'altitude et compte environ 460 habitants"); an optional setting also reads the Wikipedia fun-fact aloud; per-session deduplication prevents re-announcing the same town or POI for 2 hours
-- **Map follow zoom** — choose in Display settings whether the map tracks the vehicle while moving; seven zoom levels from a broad regional view down to street level, or keep the default full-route overview where start and destination are always visible
-- **Configurable OSRM timeout** — set in Advanced settings (5–120 s); a toast appears when the timeout fires and the app falls back to crow-fly distance
-- **Demo mode** — hidden easter egg for simulating a drive along a planned route without GPS
-- **Dark / light theme** and EN / FR language, both persisted
-- **Session persistence** — closing and reopening the app resumes the trip exactly where you left off (route, GPS path, position)
-- **Pocket lock** — a 🔒 *Lock screen* button in the top-bar menu covers the screen with a full-screen touch-blocking overlay so the phone can be slipped into a pocket without accidental taps; unlock by swiping up or holding (configurable in Advanced settings); the Screen Wake Lock API keeps the display on while GPS is running so tracking is not interrupted
-- **PWA** — installable on Android and iOS (16.4+), OSM tiles and Wikipedia responses cached for offline use; on iOS a one-time banner reminds the user to disable Auto-Lock while driving
-- **Privacy notice** — a first-launch modal explains which external services receive the device's approximate location (OpenStreetMap, Wikipedia / Wikidata, OSRM); GPS is gated until the user acknowledges it
+- **Route progress with ETA** — a progress bar tracks distance done, distance left, and your estimated time of arrival so everyone in the car knows how far the next stop is
+- **Town details as you drive** — as you pass through or near a town, the app shows its coat of arms, a Wikipedia photo, nickname, population, altitude, mayor, and a fun-fact pulled from Wikipedia; large directional arrows tell you instantly whether the town is to your left, right, or straight ahead
+- **Sightseeing mode** (🚶) — on foot in a city, switch to pedestrian mode and the app queries Wikidata for monuments, museums, churches, and castles within 500 m, pinning each one on the map so you always know what's around the corner
+- **Voice announcements** — each new town or point of interest is read aloud so the driver keeps eyes on the road and the kids in the back stay entertained
+- **Offline mode** — a cache setting lets you pre-download all towns and Wikipedia content before departure; once done, the app works fully without any network signal — designed so that kids can use it on their own devices without needing a mobile data plan
 
 ## Tech stack
 
