@@ -16,11 +16,26 @@ function _fireSpeechEndListeners() {
 }
 
 let _activeUtt = null
+let _watchdog  = null
+
+// Android Chrome sometimes never fires onend/onerror; without this isSpeaking stays true
+// forever and everything waiting on onSpeechEnd stalls.
+function _armWatchdog(text) {
+  clearTimeout(_watchdog)
+  const maxMs = 10_000 + text.length * 120
+  _watchdog = setTimeout(() => {
+    console.warn('[TTS] watchdog: speech never ended — resetting')
+    window.speechSynthesis.cancel()
+    isSpeaking.value = false
+    _fireSpeechEndListeners()
+  }, maxMs)
+}
 let _primed    = false
 let _pending   = null  // { text, lang } — queued while not yet unlocked
 
 function _makeUtt(text, lang) {
   const utt  = new SpeechSynthesisUtterance(text)
+  _armWatchdog(text)
   _activeUtt = utt
   utt.lang   = lang === 'fr' ? 'fr-FR' : 'en-US'
   utt.onstart = () => {
@@ -28,11 +43,13 @@ function _makeUtt(text, lang) {
     console.log('[TTS] onstart')
   }
   utt.onend = () => {
+    clearTimeout(_watchdog)
     isSpeaking.value = false
     console.log('[TTS] onend')
     _fireSpeechEndListeners()
   }
   utt.onerror = (e) => {
+    clearTimeout(_watchdog)
     isSpeaking.value = false
     console.error('[TTS] onerror', e.error, e)
     window.speechSynthesis.cancel()  // reset engine state after any error

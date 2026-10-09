@@ -1,4 +1,5 @@
 import { ref, watch, onUnmounted } from 'vue'
+import { fetchWithTimeout } from './fetchWithTimeout.js'
 
 export function useDemoMode() {
   const demoEnabled      = ref(localStorage.getItem('demoEnabled') === 'true')
@@ -30,7 +31,7 @@ export function useDemoMode() {
     try {
       const to  = destinationPoint(from.lat, from.lng, bearing ?? demoWalkBearing.value, length ?? demoWalkLength.value)
       const url = `https://routing.openstreetmap.de/routed-foot/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=polyline6`
-      const res  = await fetch(url)
+      const res  = await fetchWithTimeout(url, {}, 15000)
       if (!res.ok) throw new Error(`OSRM ${res.status}`)
       const data = await res.json()
       if (!data.routes?.length) throw new Error('No route found')
@@ -55,7 +56,7 @@ export function useDemoMode() {
     cursorDist  = 0
     try {
       const url = `https://router.project-osrm.org/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=polyline6`
-      const res  = await fetch(url)
+      const res  = await fetchWithTimeout(url, {}, 15000)
       if (!res.ok) throw new Error(`OSRM ${res.status}`)
       const data = await res.json()
       if (!data.routes?.length) throw new Error('No route found')

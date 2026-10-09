@@ -3,39 +3,16 @@
 // A separate 'poi-anchors' store records the (lat, lng, radiusKm) of each prefetch
 // so the UI can show what was downloaded.
 
-const DB_NAME    = 'alentours-wiki'
+import { openDB, withTimeout } from './idb.js'
+
 const STORE_POIS = 'pois'
-const DB_VERSION = 3
-
-let _dbPromise = null
-
-function openDB() {
-  if (!_dbPromise) {
-    _dbPromise = new Promise((resolve, reject) => {
-      const req = indexedDB.open(DB_NAME, DB_VERSION)
-      req.onupgradeneeded = e => {
-        const db = e.target.result
-        // v2 store (towns) may already exist — do not touch it
-        if (!db.objectStoreNames.contains('towns')) {
-          db.createObjectStore('towns', { keyPath: 'id' })
-        }
-        if (!db.objectStoreNames.contains(STORE_POIS)) {
-          db.createObjectStore(STORE_POIS, { keyPath: 'id' })
-        }
-      }
-      req.onsuccess = e => resolve(e.target.result)
-      req.onerror   = e => { _dbPromise = null; reject(e.target.error) }
-    })
-  }
-  return _dbPromise
-}
 
 // Store an array of POI objects for a given language.
 // Each entry: { id: qid, name, description, lat, lng, image, wikiTitle, wiki }
 export async function poiCachePutMany(pois, lang) {
   if (!pois.length) return
   const db = await openDB()
-  return new Promise((resolve, reject) => {
+  return withTimeout(new Promise((resolve, reject) => {
     const tx    = db.transaction(STORE_POIS, 'readwrite')
     const store = tx.objectStore(STORE_POIS)
     for (const poi of pois) {
@@ -43,13 +20,14 @@ export async function poiCachePutMany(pois, lang) {
     }
     tx.oncomplete = () => resolve()
     tx.onerror    = e => reject(e.target.error)
-  })
+    tx.onabort    = e => reject(e.target.error)
+  }))
 }
 
 // Return all cached POIs for a language as an array.
 export async function poiCacheGetAll(lang) {
   const db = await openDB()
-  return new Promise((resolve, reject) => {
+  return withTimeout(new Promise((resolve, reject) => {
     const tx    = db.transaction(STORE_POIS, 'readonly')
     const store = tx.objectStore(STORE_POIS)
     const req   = store.getAll()
@@ -57,7 +35,7 @@ export async function poiCacheGetAll(lang) {
       resolve(req.result.filter(r => r.lang === lang))
     }
     req.onerror = e => reject(e.target.error)
-  })
+  }))
 }
 
 // Return the count of cached POIs for a language.
@@ -69,11 +47,11 @@ export async function poiCacheCount(lang) {
 // Remove all cached POIs.
 export async function poiCacheClear() {
   const db = await openDB()
-  return new Promise((resolve, reject) => {
+  return withTimeout(new Promise((resolve, reject) => {
     const tx    = db.transaction(STORE_POIS, 'readwrite')
     const store = tx.objectStore(STORE_POIS)
     const req   = store.clear()
     req.onsuccess = () => resolve()
     req.onerror   = e => reject(e.target.error)
-  })
+  }))
 }

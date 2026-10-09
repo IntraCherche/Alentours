@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.5.26] — 2026-10-09
+
+### Fixed
+- **App no longer freezes until the tablet is rebooted** — no network request had a timeout, so one stalled request on a weak connection left a loading flag stuck forever (place search, "use my location", trip prefetch, foot-mode POIs, demo routing). All requests now go through `fetchWithTimeout`; the Overpass fallback server is now also used when the first one hangs, and "Cancel" aborts the in-flight request.
+- **Place search failures are visible** — a timeout, rate limit or offline error now shows a message instead of silently showing no suggestions. Out-of-order responses can no longer overwrite newer suggestions, towns or POIs.
+- **IndexedDB can no longer hang the app** — the town and POI caches share one opener with a timeout and `onversionchange` handling (they previously opened the same database with different versions, which could leave a store missing).
+- **GPS watchdog** — if no fix arrives for 30 s, or the app returns to the foreground, the position watch is restarted (Android can silently stop it after sleep).
+- **TTS watchdog** — `isSpeaking` is reset if the speech engine never fires `onend`.
+- Removed the ignored `User-Agent` header from Nominatim requests; fixed the Wikipedia service-worker cache rule, which never matched `/w/api.php`.
+
+---
+
 ## [1.5.25] — 2026-05-20
 
 ### Fixed

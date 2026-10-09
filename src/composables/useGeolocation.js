@@ -7,6 +7,12 @@ export function useGeolocation() {
 
   let watchId  = null
   let wakeLock = null
+  let lastFixAt = 0
+  let watchdog  = null
+
+  // Android can silently stop delivering fixes after sleep/background without any error.
+  // If nothing arrives for a while, drop the watch and register a fresh one.
+  const STALE_MS = 30_000
 
   async function requestWakeLock() {
     if (!('wakeLock' in navigator)) return
@@ -23,20 +29,15 @@ export function useGeolocation() {
 
   // The OS releases the wake lock when the page is hidden; re-acquire on return.
   function onVisibilityChange() {
-    if (document.visibilityState === 'visible' && watching.value && !wakeLock) {
-      requestWakeLock()
-    }
+    if (document.visibilityState !== 'visible' || !watching.value) return
+    if (!wakeLock) requestWakeLock()
+    restartWatch()   // the watch is often dead after the tablet slept
   }
 
-  function start() {
-    if (watchId !== null) return
-    if (!navigator.geolocation) {
-      error.value = 'Geolocation not supported by this browser.'
-      return
-    }
-    watching.value = true
+  function registerWatch() {
     watchId = navigator.geolocation.watchPosition(
       (pos) => {
+        lastFixAt = Date.now()
         position.value = {
           lat: pos.coords.latitude,
           lng: pos.coords.longitude,
@@ -55,11 +56,33 @@ export function useGeolocation() {
         timeout: 10000
       }
     )
+  }
+
+  function restartWatch() {
+    if (watchId !== null) navigator.geolocation.clearWatch(watchId)
+    lastFixAt = Date.now()
+    registerWatch()
+  }
+
+  function start() {
+    if (watchId !== null) return
+    if (!navigator.geolocation) {
+      error.value = 'Geolocation not supported by this browser.'
+      return
+    }
+    watching.value = true
+    lastFixAt = Date.now()
+    registerWatch()
+    watchdog = setInterval(() => {
+      if (Date.now() - lastFixAt > STALE_MS) restartWatch()
+    }, 10_000)
     requestWakeLock()
     document.addEventListener('visibilitychange', onVisibilityChange)
   }
 
   function stop() {
+    clearInterval(watchdog)
+    watchdog = null
     if (watchId !== null) {
       navigator.geolocation.clearWatch(watchId)
       watchId = null

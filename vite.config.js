@@ -39,7 +39,7 @@ export default defineConfig({
           },
           {
             // Cache Wikipedia API responses
-            urlPattern: /^https:\/\/[a-z]+\.wikipedia\.org\/api\/.*/,
+            urlPattern: /^https:\/\/[a-z]+\.wikipedia\.org\/w\/api\.php.*/,
             handler: 'NetworkFirst',
             options: { cacheName: 'wikipedia-api' }
           }

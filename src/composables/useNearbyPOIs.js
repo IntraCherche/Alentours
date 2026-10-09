@@ -11,6 +11,7 @@
  * results are served from the IndexedDB POI cache instead.
  */
 import { ref } from 'vue'
+import { fetchWithTimeout } from './fetchWithTimeout.js'
 import { useLocale } from './useLocale.js'
 import { poiCachePutMany, poiCacheGetAll, poiCacheCount } from './usePOICache.js'
 
@@ -62,6 +63,7 @@ export function useNearbyPOIs() {
   let lastQueryLat  = null
   let lastQueryLng  = null
   let lastQueryTime = 0
+  let querySeq      = 0
 
   // footCacheMode: 'none' | 'offline'  (passed in from App.vue as a plain getter)
   let getCacheMode = () => 'none'
@@ -81,60 +83,67 @@ export function useNearbyPOIs() {
     lastQueryLng  = lng
     lastQueryTime = now
 
+    const seq = ++querySeq   // a slower, older response must not overwrite a newer one
     loading.value = true
     error.value   = null
 
-    if (getCacheMode() === 'offline') {
-      await fetchFromCache(lat, lng, heading)
-    } else {
-      await fetchLive(lat, lng, heading)
-    }
+    const ok = getCacheMode() === 'offline'
+      ? await fetchFromCache(lat, lng, heading, seq)
+      : await fetchLive(lat, lng, heading, seq)
 
+    if (seq !== querySeq) return
+    if (!ok) lastQueryTime = 0   // retry on the next fix instead of waiting out the throttle
     loading.value = false
   }
 
-  async function fetchLive(lat, lng, heading) {
+  async function fetchLive(lat, lng, heading, seq) {
     try {
       const langCode = lang.value === 'fr' ? 'fr' : 'en'
       const sparql   = buildSparql(lng, lat, langCode, getAnnouncementRadiusKm(), 20)
       const url      = `${SPARQL_URL}?query=${encodeURIComponent(sparql)}&format=json`
-      const res      = await fetch(url, { headers: { Accept: 'application/sparql-results+json' } })
+      const res      = await fetchWithTimeout(url, { headers: { Accept: 'application/sparql-results+json' } }, 20000)
       if (!res.ok) throw new Error(`SPARQL ${res.status}`)
       const data = await res.json()
-      pois.value = parseResults(data, lat, lng, heading)
-      const withWiki = pois.value.filter(p => p.wikiTitle)
+      const found = parseResults(data, lat, lng, heading)
+      const withWiki = found.filter(p => p.wikiTitle)
       if (withWiki.length) await fetchPOIExtracts(withWiki, langCode)
+      if (seq === querySeq) pois.value = found
+      return true
     } catch {
-      error.value = 'Network error'
+      if (seq === querySeq) error.value = 'Network error'
+      return false
     }
   }
 
-  async function fetchFromCache(lat, lng, heading) {
+  async function fetchFromCache(lat, lng, heading, seq) {
     try {
       const langCode = lang.value === 'fr' ? 'fr' : 'en'
       const all      = await poiCacheGetAll(langCode)
       if (!all.length) {
-        error.value = 'no_cache'
-        pois.value  = []
-        return
+        if (seq === querySeq) { error.value = 'no_cache'; pois.value = [] }
+        return true
       }
       const nearby = all
         .map(p => ({ ...p, distance: haversine(lat, lng, p.lat, p.lng), side: computeSide(lat, lng, heading, p.lat, p.lng) }))
         .filter(p => p.distance <= getAnnouncementRadiusKm() * 1000)
         .sort((a, b) => a.distance - b.distance)
-      pois.value = nearby
+      if (seq === querySeq) pois.value = nearby
+      return true
     } catch {
-      error.value = 'Network error'
+      if (seq === querySeq) error.value = 'Network error'
+      return false
     }
   }
 
   const cancelRequested    = ref(false)
+  let prefetchAbort        = null
   const prefetchCancelling = ref(false)
 
   function cancelPrefetch() {
     if (prefetching.value) {
       cancelRequested.value    = true
       prefetchCancelling.value = true
+      prefetchAbort?.abort()
     }
   }
 
@@ -147,12 +156,13 @@ export function useNearbyPOIs() {
     cancelRequested.value    = false
     prefetchCancelling.value = false
     error.value              = null
+    prefetchAbort            = new AbortController()
 
     try {
       const langCode = lang.value === 'fr' ? 'fr' : 'en'
       const sparql   = buildSparql(lng, lat, langCode, radiusKm, 200)
       const url      = `${SPARQL_URL}?query=${encodeURIComponent(sparql)}&format=json`
-      const res      = await fetch(url, { headers: { Accept: 'application/sparql-results+json' } })
+      const res      = await fetchWithTimeout(url, { headers: { Accept: 'application/sparql-results+json' } }, 60000, prefetchAbort.signal)
       if (!res.ok) throw new Error(`SPARQL ${res.status}`)
       const data = await res.json()
 
@@ -181,8 +191,9 @@ export function useNearbyPOIs() {
       prefetchDone.value     = true
       prefetchProgress.value = 100
     } catch {
-      error.value = 'prefetch_error'
+      if (!cancelRequested.value) error.value = 'prefetch_error'
     } finally {
+      prefetchAbort            = null
       prefetching.value        = false
       cancelRequested.value    = false
       prefetchCancelling.value = false
@@ -198,6 +209,8 @@ export function useNearbyPOIs() {
     lastQueryLat  = null
     lastQueryLng  = null
     lastQueryTime = 0
+    querySeq++            // discard any in-flight response for the old settings/position
+    loading.value = false
     pois.value    = []
   }
 
@@ -295,7 +308,7 @@ async function fetchPOIExtracts(poiList, langCode) {
     origin:    '*'
   })
   try {
-    const res = await fetch(`https://${langCode}.wikipedia.org/w/api.php?${params}`)
+    const res = await fetchWithTimeout(`https://${langCode}.wikipedia.org/w/api.php?${params}`, {}, 10000)
     if (!res.ok) return
     const data = await res.json()
 

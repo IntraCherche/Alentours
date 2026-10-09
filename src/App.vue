@@ -500,6 +500,7 @@
               </ul>
             </div>
             <span v-if="fromPlace" class="resolved">✓ {{ fromPlace.name }}</span>
+            <p v-if="suggestError.from && !fromPlace" class="error-text">{{ t('suggestError') }}</p>
           </div>
 
           <template v-if="!footMode">
@@ -520,6 +521,7 @@
                 </ul>
               </div>
               <span v-if="toPlace" class="resolved">✓ {{ toPlace.name }}</span>
+              <p v-if="suggestError.to && !toPlace" class="error-text">{{ t('suggestError') }}</p>
             </div>
 
             <button class="btn btn--primary" :disabled="!fromPlace || !toPlace || routeLoading" @click="startTrip">
@@ -548,6 +550,7 @@
                 </ul>
               </div>
               <span v-if="fromPlace" class="resolved">✓ {{ fromPlace.name }}</span>
+              <p v-if="suggestError.from && !fromPlace" class="error-text">{{ t('suggestError') }}</p>
             </div>
 
             <div class="demo-speed-row">
@@ -720,6 +723,7 @@
               </ul>
             </div>
             <span v-if="footOfflinePlace" class="resolved">✓ {{ footOfflinePlace.name }}</span>
+            <p v-if="suggestError.foot && !footOfflinePlace" class="error-text">{{ t('suggestError') }}</p>
           </div>
           <button class="btn btn--primary"
             :disabled="!footOfflinePlace"
@@ -812,7 +816,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, reactive, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useTheme } from './composables/useTheme.js'
 import { useLocale } from './composables/useLocale.js'
 import { useGeolocation } from './composables/useGeolocation.js'
@@ -1084,6 +1088,21 @@ const footAnnouncementRadiusM = ref(parseInt(localStorage.getItem('footAnnouncem
 watch(footAnnouncementRadiusM, v => { localStorage.setItem('footAnnouncementRadius', String(v)); resetPOIThrottle() })
 setAnnouncementRadiusGetter(() => footAnnouncementRadiusM.value / 1000)
 
+// Autocomplete: one counter per field so a slow, older response never overwrites a newer one,
+// and a failed lookup (timeout / rate limit / offline) is shown instead of silently doing nothing.
+const suggestSeq   = { from: 0, to: 0, foot: 0 }
+const suggestError = reactive({ from: false, to: false, foot: false })
+async function loadSuggestions(key, query, target) {
+  const seq = ++suggestSeq[key]
+  suggestError[key] = false
+  try {
+    const list = await geocodeSuggestions(query)
+    if (seq === suggestSeq[key]) target.value = list
+  } catch {
+    if (seq === suggestSeq[key]) suggestError[key] = true
+  }
+}
+
 const footOfflineQuery       = ref('')
 const footOfflineSuggestions = ref([])
 const footOfflinePlace       = ref(null)
@@ -1092,19 +1111,19 @@ const footOfflineError       = ref(null)
 let footOfflineTimer         = null
 
 // Initialise cached count display on load
-poiCacheCount(lang.value === 'fr' ? 'fr' : 'en').then(n => { footOfflineCachedCount.value = n })
+poiCacheCount(lang.value === 'fr' ? 'fr' : 'en').then(n => { footOfflineCachedCount.value = n }).catch(() => {})
 watch([lang, poiPrefetchDone], async () => {
   const langCode = lang.value === 'fr' ? 'fr' : 'en'
-  footOfflineCachedCount.value = await poiCacheCount(langCode)
+  try { footOfflineCachedCount.value = await poiCacheCount(langCode) } catch {}
 })
 
 function onFootOfflineInput() {
   clearTimeout(footOfflineTimer)
+  suggestSeq.foot++
+  suggestError.foot = false
   footOfflinePlace.value = null
   footOfflineSuggestions.value = []
-  footOfflineTimer = setTimeout(async () => {
-    footOfflineSuggestions.value = await geocodeSuggestions(footOfflineQuery.value)
-  }, 350)
+  footOfflineTimer = setTimeout(() => loadSuggestions('foot', footOfflineQuery.value, footOfflineSuggestions), 350)
 }
 
 function onFootOfflineFocus() { if (!footOfflineQuery.value) footOfflineSuggestions.value = recentAsSuggestions() }
@@ -1137,7 +1156,7 @@ async function setFootOfflineMyLocation() {
     }
     const place = await reverseGeocode(lat, lng)
     selectFootOfflinePlace(place)
-  } catch { /* user can type manually */ } finally {
+  } catch { suggestError.foot = true } finally {
     locatingMe.value = false
   }
 }
@@ -1863,14 +1882,18 @@ function addRecentLocation(place) {
 function onFromInput() {
   fromPlace.value = null
   fromSuggestions.value = []
+  suggestSeq.from++
+  suggestError.from = false
   clearTimeout(fromTimer)
-  fromTimer = setTimeout(async () => { fromSuggestions.value = await geocodeSuggestions(fromQuery.value) }, 350)
+  fromTimer = setTimeout(() => loadSuggestions('from', fromQuery.value, fromSuggestions), 350)
 }
 function onToInput() {
   toPlace.value = null
   toSuggestions.value = []
+  suggestSeq.to++
+  suggestError.to = false
   clearTimeout(toTimer)
-  toTimer = setTimeout(async () => { toSuggestions.value = await geocodeSuggestions(toQuery.value) }, 350)
+  toTimer = setTimeout(() => loadSuggestions('to', toQuery.value, toSuggestions), 350)
 }
 function onFromFocus() { if (!fromQuery.value) fromSuggestions.value = recentAsSuggestions() }
 function onToFocus()   { if (!toQuery.value)   toSuggestions.value   = recentAsSuggestions() }
@@ -1906,7 +1929,7 @@ async function setFromMyLocation() {
     }
     const place = await reverseGeocode(lat, lng)
     selectFrom(place)
-  } catch { /* ignore — user can type manually */ } finally {
+  } catch { suggestError.from = true } finally {
     locatingMe.value = false
   }
 }

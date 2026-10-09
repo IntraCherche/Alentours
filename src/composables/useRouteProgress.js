@@ -1,4 +1,5 @@
 import { ref } from 'vue'
+import { fetchWithTimeout } from './fetchWithTimeout.js'
 
 const OSRM_URL = 'https://router.project-osrm.org/route/v1/driving'
 
@@ -30,7 +31,7 @@ export function useRouteProgress() {
 
       try {
         const url = `${OSRM_URL}/${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=polyline6`
-        const res = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) })
+        const res = await fetchWithTimeout(url, {}, timeoutMs)
         if (!res.ok) throw new Error(`OSRM ${res.status}`)
         const data = await res.json()
         if (!data.routes?.length) throw new Error('No route found')

@@ -12,6 +12,7 @@
 import { ref } from 'vue'
 import { useLocale } from './useLocale.js'
 import { wikiCacheGetMany, wikiCachePutMany } from './useWikiCache.js'
+import { fetchWithTimeout } from './fetchWithTimeout.js'
 
 const OVERPASS_SERVERS = [
   'https://overpass-api.de/api/interpreter',
@@ -19,15 +20,18 @@ const OVERPASS_SERVERS = [
 ]
 const cacheKey = () => `motorhome-towns-cache-${lang.value}`
 
-async function overpassFetch(query) {
+// Each server gets its own timeout, so a hanging first server falls through to the second.
+async function overpassFetch(query, signal = null, timeoutMs = 25000) {
   const body = 'data=' + encodeURIComponent(query)
   let lastErr
   for (const url of OVERPASS_SERVERS) {
+    if (signal?.aborted) throw signal.reason ?? new Error('aborted')
     try {
-      const res = await fetch(url, { method: 'POST', body })
+      const res = await fetchWithTimeout(url, { method: 'POST', body }, timeoutMs, signal)
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       return res
     } catch (e) {
+      if (signal?.aborted) throw e
       lastErr = e
     }
   }
@@ -46,13 +50,18 @@ export function useNearbyTowns() {
   const error              = ref(null)
 
   const _cancelRequested = ref(false)
+  let _prefetchAbort = null   // aborts the in-flight request when the user cancels
 
   function cancelPrefetch() {
     if (prefetching.value) {
       _cancelRequested.value   = true
       prefetchCancelling.value = true
+      _prefetchAbort?.abort()
     }
   }
+
+  // Bumped on every live lookup; a response from an older lookup is discarded.
+  let liveSeq = 0
 
   // In-memory cache: OSM id → enriched town object
   let townCache = {}
@@ -65,6 +74,7 @@ export function useNearbyTowns() {
     prefetchCancelling.value = false
     _cancelRequested.value   = false
     error.value              = null
+    _prefetchAbort           = new AbortController()
 
     let fakeInterval = null
     let townCycler = null
@@ -86,7 +96,7 @@ export function useNearbyTowns() {
         if (prefetchProgress.value < 18) prefetchProgress.value++
       }, 900)
 
-      const res = await overpassFetch(query)
+      const res = await overpassFetch(query, _prefetchAbort.signal, 40000)
       const data = await res.json()
 
       clearInterval(fakeInterval)
@@ -208,8 +218,9 @@ export function useNearbyTowns() {
       // Let Vue paint the 100% state before the panel disappears
       await new Promise(r => setTimeout(r, 600))
     } catch (err) {
-      error.value = 'Network error'
+      if (!_cancelRequested.value) error.value = 'Network error'
     } finally {
+      _prefetchAbort = null
       clearInterval(fakeInterval)
       clearInterval(townCycler)
       prefetchCurrentTown.value = ''
@@ -243,6 +254,8 @@ export function useNearbyTowns() {
     lastQueryLat  = lat
     lastQueryLng  = lng
     lastQueryTime = now
+    const seq = ++liveSeq
+    loading.value = false   // supersedes any in-flight lookup (its finally is now skipped)
 
     // When a prefetch cache exists, serve from it — but only if nearby towns are found.
     // If the cache has no towns within range (off-route, cacheMode=none, old session),
@@ -282,7 +295,7 @@ export function useNearbyTowns() {
           if (t.wiki && t.wiki.filteredExtract == null)
             t.wiki.filteredExtract = pickExtractParagraph(t.wiki.extract, t.wiki)
         }
-        towns.value = cached
+        if (seq === liveSeq) towns.value = cached
         return
       }
       // No cached towns within range — fall through to live fetch.
@@ -344,11 +357,14 @@ export function useNearbyTowns() {
         if (t.wiki && t.wiki.filteredExtract == null)
           t.wiki.filteredExtract = pickExtractParagraph(t.wiki.extract, t.wiki)
       }
-      towns.value = list
+      if (seq === liveSeq) towns.value = list
     } catch (err) {
-      error.value = 'Network error'
+      if (seq === liveSeq) {
+        error.value = 'Network error'
+        lastQueryTime = 0   // let the next GPS fix retry instead of waiting out the 60 s throttle
+      }
     } finally {
-      loading.value = false
+      if (seq === liveSeq) loading.value = false
     }
   }
 
@@ -398,6 +414,8 @@ export function useNearbyTowns() {
   // visible from tens of kilometres, so we search 80 km and bypass the
   // normal throttle (this is triggered explicitly on filter change / GPS fix).
   async function fetchNearestCity(lat, lng, heading) {
+    const seq = ++liveSeq
+    loading.value = false   // supersedes any in-flight lookup (its finally is now skipped)
     // Cache path: find the nearest city within 80 km in the prefetch cache.
     // The cache may contain cities from a previous route far away — always
     // apply the radius cap so stale distant cities don't leak through.
@@ -433,7 +451,7 @@ export function useNearbyTowns() {
           if (t.wiki && t.wiki.filteredExtract == null)
             t.wiki.filteredExtract = pickExtractParagraph(t.wiki.extract, t.wiki)
         }
-        towns.value = cities
+        if (seq === liveSeq) towns.value = cities
         return
       }
       // Cache exists but has no cities — fall through to live query.
@@ -479,11 +497,11 @@ export function useNearbyTowns() {
         if (t.wiki && t.wiki.filteredExtract == null)
           t.wiki.filteredExtract = pickExtractParagraph(t.wiki.extract, t.wiki)
       }
-      towns.value = list
+      if (seq === liveSeq) towns.value = list
     } catch (err) {
-      error.value = 'Network error'
+      if (seq === liveSeq) error.value = 'Network error'
     } finally {
-      loading.value = false
+      if (seq === liveSeq) loading.value = false
     }
   }
 
@@ -550,7 +568,7 @@ async function fetchWikiSummaryBatch(towns, language) {
 
   let data
   try {
-    const res = await fetch(`https://${lang}.wikipedia.org/w/api.php?${params}`)
+    const res = await fetchWithTimeout(`https://${lang}.wikipedia.org/w/api.php?${params}`, {}, 10000)
     if (!res.ok) return
     data = await res.json()
   } catch { return }
@@ -603,7 +621,7 @@ async function fetchWikiByCoords(town, lang) {
 
   let data
   try {
-    const res = await fetch(`https://${lang}.wikipedia.org/w/api.php?${params}`)
+    const res = await fetchWithTimeout(`https://${lang}.wikipedia.org/w/api.php?${params}`, {}, 10000)
     if (!res.ok) return
     data = await res.json()
   } catch { return }
@@ -693,7 +711,7 @@ SELECT DISTINCT ?city ?pop ?elevation ?alias ?demonym ?riverLabel ?depLabel ?dep
 `
 
   const url = `https://query.wikidata.org/sparql?query=${encodeURIComponent(sparql)}&format=json`
-  const res = await fetch(url, { headers: { Accept: 'application/sparql-results+json' } })
+  const res = await fetchWithTimeout(url, { headers: { Accept: 'application/sparql-results+json' } }, 20000)
   if (!res.ok) return {}
   const data = await res.json()
 

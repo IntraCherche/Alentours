@@ -2,14 +2,17 @@
  * useGeocoding — city name → coordinates via Nominatim (OSM, free, no key)
  */
 
+import { fetchWithTimeout } from './fetchWithTimeout.js'
+
 const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search'
 const NOMINATIM_REVERSE_URL = 'https://nominatim.openstreetmap.org/reverse'
+const TIMEOUT_MS = 8000
+// User-Agent is a forbidden header in browsers (silently ignored), so only Accept-Language is sent.
+const HEADERS = { 'Accept-Language': 'en' }
 
 export async function geocode(query) {
   const url = `${NOMINATIM_URL}?q=${encodeURIComponent(query)}&format=json&limit=3`
-  const res = await fetch(url, {
-    headers: { 'Accept-Language': 'en', 'User-Agent': 'motorhome-dashboard/1.0' }
-  })
+  const res = await fetchWithTimeout(url, { headers: HEADERS }, TIMEOUT_MS)
   if (!res.ok) throw new Error('Geocoding failed')
   const results = await res.json()
   if (!results.length) throw new Error(`No results found for "${query}"`)
@@ -38,21 +41,18 @@ function buildLabel(r) {
 
 export async function reverseGeocode(lat, lng) {
   const url = `${NOMINATIM_REVERSE_URL}?lat=${lat}&lon=${lng}&format=json&addressdetails=1`
-  const res = await fetch(url, {
-    headers: { 'Accept-Language': 'en', 'User-Agent': 'motorhome-dashboard/1.0' }
-  })
+  const res = await fetchWithTimeout(url, { headers: HEADERS }, TIMEOUT_MS)
   if (!res.ok) throw new Error('Reverse geocoding failed')
   const r = await res.json()
   return { name: buildLabel(r), lat, lng }
 }
 
-export async function geocodeSuggestions(query) {
+// Throws on network failure / timeout / rate-limit so the caller can show a message.
+export async function geocodeSuggestions(query, signal = null) {
   if (query.length < 2) return []
   const url = `${NOMINATIM_URL}?q=${encodeURIComponent(query)}&format=json&limit=5&addressdetails=1`
-  const res = await fetch(url, {
-    headers: { 'Accept-Language': 'en', 'User-Agent': 'motorhome-dashboard/1.0' }
-  })
-  if (!res.ok) return []
+  const res = await fetchWithTimeout(url, { headers: HEADERS }, TIMEOUT_MS, signal)
+  if (!res.ok) throw new Error(`Geocoding ${res.status}`)
   const results = await res.json()
   return results.map(r => ({
     name: buildLabel(r),
